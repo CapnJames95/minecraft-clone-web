@@ -16,8 +16,8 @@
   .slot.active { border-color: #fff; }
   .slot canvas { width: 28px; height: 28px; image-rendering: pixelated; }
   .slot .label { position: absolute; bottom: -2px; right: 0; font-size: 9px; padding: 0 2px; background: rgba(0,0,0,0.7); }
-  #hp { position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%); display: flex; gap: 2px; }
-  #hunger { position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); display: flex; gap: 2px; }
+  #hp { position: absolute; bottom: 72px; left: 50%; transform: translateX(-50%); display: flex; gap: 2px; }
+  #hunger { position: absolute; bottom: 94px; left: 50%; transform: translateX(-50%); display: flex; gap: 2px; }
   .heart, .drumstick { width: 18px; height: 18px; }
   #toast { position: absolute; top: 80px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); padding: 6px 12px; font-size: 13px; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
   #toast.show { opacity: 1; }
@@ -750,10 +750,29 @@ function mobMesh(type) {
       leg.position.set(x, 0.15, z); g.add(leg);
     }
   } else if (type === 'cow') {
+    // Forward = -X (head faces -X to match yaw=0 forward). Use +X for head.
     const body = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.8, 0.7), new THREE.MeshLambertMaterial({ color: 0x553322 }));
     body.position.y = 0.6; g.add(body);
+    // White patches on the body
+    const patch1 = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.3, 0.72), new THREE.MeshLambertMaterial({ color: 0xeeeeee }));
+    patch1.position.set(-0.2, 0.7, 0); g.add(patch1);
+    const patch2 = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.72), new THREE.MeshLambertMaterial({ color: 0xeeeeee }));
+    patch2.position.set(0.3, 0.5, 0); g.add(patch2);
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), new THREE.MeshLambertMaterial({ color: 0x6b4422 }));
     head.position.set(0.8, 0.75, 0); g.add(head);
+    // Snout
+    const snout = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.25, 0.35), new THREE.MeshLambertMaterial({ color: 0xd0a890 }));
+    snout.position.set(1.0, 0.65, 0); g.add(snout);
+    // Eyes
+    const eyeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+    const eye1 = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.08, 0.08), eyeMat);
+    eye1.position.set(1.06, 0.88, 0.15); g.add(eye1);
+    const eye2 = eye1.clone(); eye2.position.z = -0.15; g.add(eye2);
+    // Nostrils
+    const nostrilMat = new THREE.MeshBasicMaterial({ color: 0x402010 });
+    const n1 = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.06), nostrilMat);
+    n1.position.set(1.105, 0.6, 0.08); g.add(n1);
+    const n2 = n1.clone(); n2.position.z = -0.08; g.add(n2);
     const horn1 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.1), new THREE.MeshLambertMaterial({ color: 0xeeeeee }));
     horn1.position.set(0.8, 1.05, 0.2); g.add(horn1);
     const horn2 = horn1.clone(); horn2.position.z = -0.2; g.add(horn2);
@@ -913,12 +932,13 @@ function updateMobSpawns(dt, px, pz) {
     const sx = px + Math.cos(angle) * dist;
     const sz = pz + Math.sin(angle) * dist;
     const bx = Math.floor(sx), bz = Math.floor(sz);
-    let sy = null;
+    let sy = null, hitWater = false;
     for (let y = CHUNK_H - 1; y >= 1; y--) {
       const id = world.getBlock(bx, y, bz);
+      if (id === BLOCKS.WATER.id) { hitWater = true; }
       if (isSolid(id)) { sy = y + 1; break; }
     }
-    if (sy === null || sy < SEA_LEVEL + 1) continue;
+    if (sy === null || sy < SEA_LEVEL + 1 || hitWater) continue;
     const b = biomeAt(bx, bz);
     if (b === BIOME.OCEAN) continue;
     if (night && Math.random() < 0.7) {
@@ -953,9 +973,19 @@ function makeBoatMesh() {
   bow.position.set(0, 0.1, -1.0); g.add(bow);
   return g;
 }
+function waterSurfaceY(x, z) {
+  const bx = Math.floor(x), bz = Math.floor(z);
+  for (let y = CHUNK_H - 1; y >= 0; y--) {
+    const id = world.getBlock(bx, y, bz);
+    if (id === BLOCKS.WATER.id) return y + 1;
+    if (isSolid(id)) return null;
+  }
+  return null;
+}
 function spawnBoat(x, z) {
   const mesh = makeBoatMesh();
-  const boat = { pos: new THREE.Vector3(x, SEA_LEVEL + 0.5, z), yaw: 0, mesh };
+  const sy = waterSurfaceY(x, z);
+  const boat = { pos: new THREE.Vector3(x, (sy !== null ? sy : SEA_LEVEL + 1) + 0.1, z), yaw: 0, mesh };
   mesh.position.copy(boat.pos);
   scene.add(mesh);
   boats.push(boat);
@@ -990,6 +1020,15 @@ function updateBoats(dt, px, pz) {
   for (let i = boats.length - 1; i >= 0; i--) {
     const b = boats[i];
     if (player.boat === b) continue;
+    // Float unmounted boats on water surface
+    const sy = waterSurfaceY(b.pos.x, b.pos.z);
+    if (sy !== null) {
+      const targetY = sy + 0.1;
+      b.pos.y += (targetY - b.pos.y) * Math.min(1, dt * 6);
+    } else {
+      b.pos.y -= 5 * dt;
+    }
+    b.mesh.position.copy(b.pos);
     if (Math.hypot(b.pos.x - px, b.pos.z - pz) > 80) { scene.remove(b.mesh); boats.splice(i, 1); }
   }
 }
