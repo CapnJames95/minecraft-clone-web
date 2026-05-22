@@ -154,8 +154,9 @@
 <div id="mainMenu">
   <div style="text-align:center;padding:30px">
     <h1 style="font-size:64px;margin:0 0 4px;color:#ff80ff;text-shadow:0 0 20px #ff00ff,0 0 4px #fff;letter-spacing:2px">VAPECRAFT</h1>
-    <div id="mmSplash" style="color:#ffe040;font-weight:bold;font-size:18px;transform:rotate(-8deg);text-shadow:2px 2px 0 #8a6a00;pointer-events:none;margin:0 auto 12px;display:inline-block"></div>
-    <p style="font-size:14px;color:#aaa;margin:0 0 24px">A browser Minecraft clone (with vapes)</p>
+    <div id="mmSplash" style="color:#ffe040;font-weight:bold;font-size:18px;transform:rotate(-8deg);text-shadow:2px 2px 0 #8a6a00;pointer-events:none;margin:0 auto 4px;display:inline-block"></div>
+    <p style="font-size:14px;color:#aaa;margin:0 0 4px">A browser Minecraft clone (with vapes)</p>
+    <p id="mmVersion" style="font-size:12px;color:#666;margin:0 0 20px;font-family:monospace"></p>
     <div id="mmHome">
       <button class="mm-btn" id="mmPlay">▶ Play Current World</button><br>
       <button class="mm-btn" id="mmWorlds">📂 Singleplayer Worlds</button><br>
@@ -304,6 +305,9 @@
 
 <script type="module">
 import * as THREE from 'three';
+
+// VERSION — replaced on every commit by the pre-commit script below
+const VERSION = 'v0.18 (b43ce7d)';
 
 // ============== Random / Noise ==============
 function mulberry32(seed) {
@@ -2067,12 +2071,18 @@ document.addEventListener('keydown', (e) => {
   if (e.code === 'KeyE') { e.preventDefault(); toggleInventory(); }
   if (e.code === 'KeyC') { e.preventDefault(); toggleCrafting(); }
   if (e.code === 'KeyV' && document.pointerLockElement === renderer.domElement) {
-    // Vape the currently selected vape if it's a vape
     const held = getHeldItem();
-    if (held && held.vape) puffVape(held);
+    if (held && held.vape) { puffVape(held); }
+    else if (held && (held.key === 'fake_cig' || held.key === 'fake_cig_pack')) { smokeFakeCig(held); }
     else {
-      // Or vape any owned vape
-      for (const k in ITEMS) if (ITEMS[k].vape && ((player.inventory['i' + ITEMS[k].key] || 0) > 0 || (player.vapePuffs[ITEMS[k].key] || 0) > 0)) { puffVape(ITEMS[k]); break; }
+      // Try owned vapes first, then fake cigs
+      let used = false;
+      for (const k in ITEMS) if (ITEMS[k].vape && getVapeArr(ITEMS[k].key).length > 0) { puffVape(ITEMS[k]); used = true; break; }
+      if (!used) {
+        if ((player.inventory['i' + ITEMS.FAKE_CIG.key] || 0) > 0) { smokeFakeCig(ITEMS.FAKE_CIG); used = true; }
+        else if ((player.inventory['i' + ITEMS.FAKE_CIG_PACK.key] || 0) > 0) { smokeFakeCig(ITEMS.FAKE_CIG_PACK); used = true; }
+      }
+      if (!used) showToast("You don't have anything smokeable.");
     }
   }
   if (e.code === 'KeyB' && document.pointerLockElement === renderer.domElement) spawnBoat(player.pos.x + 1, player.pos.z);
@@ -2981,6 +2991,26 @@ function puffVape(item) {
   // All-flavors check
   const flavors = ['vape_mango','vape_mint','vape_blueberry','vape_strawberry','vape_watermelon','vape_cottoncandy','vape_gold'];
   if (flavors.every(f => (getVapeArr(f).length) > 0)) unlockAchievement('all_flavors');
+  return true;
+}
+
+function smokeFakeCig(item) {
+  const k = 'i' + item.key;
+  if (!player.inventory[k] || player.inventory[k] <= 0) { showToast(`No ${item.name}!`); return false; }
+  player.inventory[k]--;
+  if (player.inventory[k] <= 0) delete player.inventory[k];
+  // A pack gives you 20 puffs over time? Keep simple: pack just gives lots of nicotine + adds 20 fake cigs
+  if (item.key === 'fake_cig_pack') {
+    player.inventory['i' + ITEMS.FAKE_CIG.key] = (player.inventory['i' + ITEMS.FAKE_CIG.key] || 0) + 20;
+    showToast('Opened the pack — 20 dodgy fake cigarettes added.');
+    return true;
+  }
+  player.nicotine = Math.min(player.maxNicotine + 30, player.nicotine + 12);
+  spawnSmoke();
+  showVapeCloud();
+  unlockAchievement('first_vape');
+  if (player.nicotine > 90) unlockAchievement('too_much_nic');
+  showToast(`Smoked a fake fag. Feel a bit weird tbh.`);
   return true;
 }
 
@@ -4023,6 +4053,7 @@ function pickSplash() {
 }
 pickSplash();
 setInterval(pickSplash, 4000);
+document.getElementById('mmVersion').textContent = VERSION;
 document.getElementById('mmInstructions').addEventListener('click', () => showMMPane('mmInstructionsPane'));
 document.getElementById('mmPlay').addEventListener('click', () => { mainMenu.classList.add('hidden'); overlay.classList.remove('hidden'); });
 document.getElementById('mmWorlds').addEventListener('click', () => { renderMMWorlds(); showMMPane('mmWorldsPane'); });
