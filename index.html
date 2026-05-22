@@ -49,10 +49,24 @@
   .craft-row .label { flex: 1; font-size: 12px; }
   #minimap { position: absolute; top: 10px; left: 10px; width: 200px; height: 200px; border: 2px solid #000; background: #87CEEB; image-rendering: pixelated; display: none; }
   #minimap.shown { display: block; }
-  #overlay, #menu { position: absolute; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; flex-direction: column; text-align: center; }
+  #overlay, #menu { position: absolute; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; flex-direction: column; text-align: center; }
   #overlay { cursor: pointer; }
+  #overlay.compact { background: rgba(0,0,0,0.35); }
+  #overlay.compact h1 { font-size: 20px; color: #fff; }
+  #overlay.compact .controls-list, #overlay.compact .controls-list2 { display: none; }
   #overlay h1 { margin: 0 0 12px; font-size: 32px; }
   #overlay p { margin: 4px 0; font-size: 14px; }
+  /* Minecraft-style modal close button */
+  .modal-close { position: absolute; top: 6px; right: 8px; background: #c22; color: #fff; border: 2px solid #f44; width: 28px; height: 28px; cursor: pointer; font-family: inherit; font-weight: bold; font-size: 14px; line-height: 1; padding: 0; }
+  .modal-close:hover { background: #f33; }
+  /* Pixel border style */
+  #menu .panel, #vapeModal .panel, #craftModal .panel, #furnaceModal .panel, #invModal .panel, #dialogueModal .panel { box-shadow: inset 2px 2px 0 #444, inset -2px -2px 0 #111, 0 4px 16px rgba(0,0,0,0.5); position: relative; }
+  /* Category tabs in inventory */
+  .inv-cats { display: flex; gap: 2px; margin: 8px 0 6px; border-bottom: 2px solid #444; }
+  .inv-cat { padding: 6px 14px; background: #333; border: 2px solid #555; border-bottom: 0; cursor: pointer; font-size: 12px; }
+  .inv-cat.active { background: #555; border-color: #888; }
+  .creative-toggle { background: #4a6; color: #fff; border: 2px solid #6c8; padding: 6px 14px; margin-left: auto; cursor: pointer; font-family: inherit; }
+  .creative-toggle.on { background: #6c8; }
   .hidden { display: none !important; }
   #menu .panel { background: #222; border: 2px solid #555; padding: 20px 30px; width: 460px; max-height: 80vh; overflow-y: auto; }
   #vapeModal .panel, #craftModal .panel, #furnaceModal .panel { max-height: 80vh; overflow-y: auto; width: 540px; }
@@ -81,27 +95,36 @@
 <div id="sickFilter"></div>
 <div id="vapeCloud"></div>
 <div id="achievementToast"><div class="ach-title">Achievement unlocked!</div><div class="ach-name"></div></div>
-<div id="invModal" class="hidden"><div class="panel" style="max-height:90vh;overflow-y:auto;width:600px">
-  <h2>Inventory (E or Esc to close)</h2>
-  <p style="font-size:12px;opacity:0.7">Drag items from below onto your hotbar (or click an item to put it in the highlighted hotbar slot).</p>
-  <h3 style="margin:8px 0 4px;font-size:14px">Hotbar</h3>
+<div id="invModal" class="hidden"><div class="panel" style="max-height:90vh;overflow-y:auto;width:640px">
+  <button class="modal-close" id="invModalClose">×</button>
+  <h2>Inventory</h2>
+  <p style="font-size:12px;opacity:0.7">Drag items onto a hotbar slot, or click to put in the selected (white-bordered) slot.</p>
+  <h3 style="margin:8px 0 4px;font-size:14px">Hotbar (drag here)</h3>
   <div class="inv-grid" id="invHotbar" style="grid-template-columns:repeat(9,1fr)"></div>
-  <h3 style="margin:12px 0 4px;font-size:14px">Blocks</h3>
-  <div class="inv-grid" id="invBlocks"></div>
-  <h3 style="margin:12px 0 4px;font-size:14px">Items</h3>
-  <div class="inv-grid" id="invItems"></div>
+  <div class="inv-cats">
+    <div class="inv-cat active" data-cat="blocks">Blocks</div>
+    <div class="inv-cat" data-cat="vapes">Vapes</div>
+    <div class="inv-cat" data-cat="food">Food</div>
+    <div class="inv-cat" data-cat="items">Items</div>
+    <div class="inv-cat" data-cat="tools">Tools</div>
+    <button class="creative-toggle" id="invCreativeBtn">Creative (Show All)</button>
+  </div>
+  <div class="inv-grid" id="invGrid"></div>
 </div></div>
 <div id="craftModal" class="hidden"><div class="panel">
-  <h2>Crafting (C to close)</h2>
+  <button class="modal-close" id="craftModalClose">×</button>
+  <h2>Crafting</h2>
   <div id="craftList"></div>
 </div></div>
 <div id="furnaceModal" class="hidden"><div class="panel" style="border-color:#aa6020">
+  <button class="modal-close" id="furnaceModalCloseX">×</button>
   <h2 style="color:#ff8030">Furnace</h2>
   <p style="font-size:12px;opacity:0.7">Need fuel (Coal or Plank/Wood) to smelt. Click an item to smelt.</p>
   <div id="furnaceList"></div>
   <button id="furnaceClose" style="margin-top:8px">Close</button>
 </div></div>
 <div id="vapeModal" class="hidden"><div class="panel" style="border-color:#ff00ff">
+  <button class="modal-close" id="vapeModalCloseX">×</button>
   <h2 id="vapeTitle" style="color:#ff80ff;text-shadow:0 0 8px #ff00ff">VAPE SHOP</h2>
   <p id="vapeFlavor" style="font-size:13px;color:#ffe040"></p>
   <p id="vapeLoyalty" style="font-size:12px;color:#88ffaa"></p>
@@ -110,16 +133,15 @@
   <button id="vapeClose" style="margin-top:8px">Close</button>
 </div></div>
 <div id="dialogueModal" class="hidden"><div class="panel" style="border-color:#88ff88;max-width:500px">
+  <button class="modal-close" id="dialogueModalCloseX">×</button>
   <h2 id="diaName" style="color:#ffe040">Vape Shopkeeper</h2>
   <p id="diaText" style="font-size:14px;line-height:1.5;min-height:60px"></p>
   <div id="diaChoices" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"></div>
 </div></div>
 <div id="mainMenu">
   <div style="text-align:center;padding:30px">
-    <div style="position:relative;display:inline-block">
-      <h1 style="font-size:64px;margin:0 0 4px;color:#ff80ff;text-shadow:0 0 20px #ff00ff,0 0 4px #fff;letter-spacing:2px">VAPECRAFT</h1>
-      <div id="mmSplash" style="position:absolute;right:-180px;top:18px;color:#ffe040;font-weight:bold;font-size:18px;transform:rotate(-15deg);text-shadow:2px 2px 0 #8a6a00;pointer-events:none;max-width:280px;text-align:left"></div>
-    </div>
+    <h1 style="font-size:64px;margin:0 0 4px;color:#ff80ff;text-shadow:0 0 20px #ff00ff,0 0 4px #fff;letter-spacing:2px">VAPECRAFT</h1>
+    <div id="mmSplash" style="color:#ffe040;font-weight:bold;font-size:18px;transform:rotate(-8deg);text-shadow:2px 2px 0 #8a6a00;pointer-events:none;margin:0 auto 12px;display:inline-block"></div>
     <p style="font-size:14px;color:#aaa;margin:0 0 24px">A browser Minecraft clone (with vapes)</p>
     <div id="mmHome">
       <button class="mm-btn" id="mmPlay">▶ Play Current World</button><br>
@@ -191,11 +213,14 @@
 <div id="overlay" class="hidden">
   <h1>VapeCraft</h1>
   <p>Click to play</p>
-  <p>WASD = Move &nbsp; Space = Jump/Swim &nbsp; Shift = Sprint</p>
-  <p>Mouse = Look &nbsp; Left = Break/Attack &nbsp; Right = Place/Ride</p>
-  <p>1-9, 0, Shift+1-8 = Hotbar &nbsp; Scroll = Cycle</p>
-  <p>F = Fly &nbsp; B = Spawn boat &nbsp; M = Minimap &nbsp; Tab = Menu</p>
-  <p>E = Inventory &nbsp; C = Crafting &nbsp; G = Eat food &nbsp; Right-click bed at night = Sleep</p>
+  <div class="controls-list">
+    <p>WASD = Move &nbsp; Space = Jump/Swim &nbsp; Shift = Sprint</p>
+    <p>Mouse = Look &nbsp; Left = Break/Attack &nbsp; Right = Place/Ride</p>
+  </div>
+  <div class="controls-list2">
+    <p>1-9 = Hotbar &nbsp; Scroll = Cycle &nbsp; F = Fly &nbsp; B = Boat &nbsp; M = Map &nbsp; V = Vape</p>
+    <p>E = Inventory &nbsp; C = Crafting &nbsp; G = Eat &nbsp; Tab = Menu &nbsp; Esc = Close modals</p>
+  </div>
 </div>
 <div id="menu" class="hidden">
   <div class="panel">
@@ -1566,7 +1591,7 @@ function updateMobSpawns(dt, px, pz) {
   if (pendingShopkeepers.length) {
     for (let i = pendingShopkeepers.length - 1; i >= 0; i--) {
       const s = pendingShopkeepers[i];
-      if (Math.hypot(s.x - px, s.z - pz) > 120) continue;
+      if (Math.hypot(s.x - px, s.z - pz) > 200) continue;
       // Don't double-spawn
       let already = false;
       for (const m of mobs) {
@@ -1863,14 +1888,10 @@ const HOTBAR_FULL = [
 // Player-customizable hotbar layout: 9 slots, each null or {type:'b', id} | {type:'i', key} | {type:'sword'}
 // Default for creative: first 8 blocks + sword. For survival: empty.
 function defaultHotbarLayout() {
-  if (settings.gamemode === 'creative') {
-    return [
-      {type:'b',id:BLOCKS.GRASS.id},{type:'b',id:BLOCKS.STONE.id},{type:'b',id:BLOCKS.WOOD.id},
-      {type:'b',id:BLOCKS.PLANK.id},{type:'b',id:BLOCKS.COBBLE.id},{type:'b',id:BLOCKS.GLASS.id},
-      {type:'b',id:BLOCKS.DOOR_CLOSED.id},{type:'b',id:BLOCKS.TORCH.id},{type:'sword'},
-    ];
-  }
-  return [null,null,null,null,null,null,null,null,null];
+  // Always start empty except slot 0 = mango vape (so V works right away)
+  const layout = [null,null,null,null,null,null,null,null,null];
+  layout[0] = { type:'i', key: ITEMS.VAPE_MANGO.key };
+  return layout;
 }
 function getHeldItem() {
   const slot = player.hotbarLayout[selectedSlot];
@@ -1883,7 +1904,7 @@ function getHeldItem() {
 
 const overlay = document.getElementById('overlay');
 const menu = document.getElementById('menu');
-overlay.addEventListener('click', () => renderer.domElement.requestPointerLock());
+overlay.addEventListener('click', () => { overlay.classList.remove('compact'); renderer.domElement.requestPointerLock(); });
 document.addEventListener('pointerlockchange', () => {
   if (document.pointerLockElement === renderer.domElement) overlay.classList.add('hidden');
   else {
@@ -1910,16 +1931,31 @@ document.addEventListener('keydown', (e) => {
     const modalIds = ['invModal', 'craftModal', 'vapeModal', 'dialogueModal', 'furnaceModal'];
     for (const id of modalIds) {
       const el = document.getElementById(id);
-      if (!el.classList.contains('hidden')) { el.classList.add('hidden'); renderer.domElement.requestPointerLock(); e.preventDefault(); return; }
+      if (!el.classList.contains('hidden')) {
+        el.classList.add('hidden');
+        // Use compact overlay (small "click to resume") so it's less jarring
+        overlay.classList.add('compact');
+        e.preventDefault();
+        return;
+      }
     }
     // Close settings menu if open
-    if (!menu.classList.contains('hidden')) { toggleMenu(); e.preventDefault(); return; }
+    if (!menu.classList.contains('hidden')) { toggleMenu(); overlay.classList.add('compact'); e.preventDefault(); return; }
   }
   if (e.code === 'KeyF') { player.fly = !player.fly; if (player.fly) unlockAchievement('fly'); }
   if (e.code === 'KeyM') { settings.mapShown = !settings.mapShown; document.getElementById('minimap').classList.toggle('shown', settings.mapShown); saveSettings(); document.getElementById('mapShown').checked = settings.mapShown; }
   if (e.code === 'Tab') { e.preventDefault(); toggleMenu(); }
   if (e.code === 'KeyE') { e.preventDefault(); toggleInventory(); }
   if (e.code === 'KeyC') { e.preventDefault(); toggleCrafting(); }
+  if (e.code === 'KeyV' && document.pointerLockElement === renderer.domElement) {
+    // Vape the currently selected vape if it's a vape
+    const held = getHeldItem();
+    if (held && held.vape) puffVape(held);
+    else {
+      // Or vape any owned vape
+      for (const k in ITEMS) if (ITEMS[k].vape && ((player.inventory['i' + ITEMS[k].key] || 0) > 0 || (player.vapePuffs[ITEMS[k].key] || 0) > 0)) { puffVape(ITEMS[k]); break; }
+    }
+  }
   if (e.code === 'KeyB' && document.pointerLockElement === renderer.domElement) spawnBoat(player.pos.x + 1, player.pos.z);
   if (e.code.startsWith('Digit')) {
     let n = parseInt(e.code.slice(5)) - 1;
@@ -2028,7 +2064,7 @@ document.addEventListener('mousedown', (e) => {
       // Survival: must have block in inventory
       if (settings.gamemode === 'survival') {
         const k = 'b' + item.id;
-        if (!player.inventory[k] || player.inventory[k] <= 0) { showToast(`Out of ${item.name}`); return; }
+        if (!player.inventory[k] || player.inventory[k] <= 0) { showToast(`You have no ${item.name} (survival mode — break some first)`); return; }
         player.inventory[k]--;
         if (player.inventory[k] <= 0) delete player.inventory[k];
       }
@@ -2539,7 +2575,16 @@ function teleportTo(target) {
   if (!target) { showToast('Nothing nearby to teleport to'); return; }
   // Force generation of chunks around the target so we can snap to terrain top
   const cx = Math.floor(target.x / CHUNK_W), cz = Math.floor(target.z / CHUNK_W);
-  for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) world.getChunk(cx + dx, cz + dz, true);
+  for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) world.getChunk(cx + dx, cz + dz, true);
+  // Immediately spawn any pending shopkeepers near the target
+  for (let i = pendingShopkeepers.length - 1; i >= 0; i--) {
+    const s = pendingShopkeepers[i];
+    if (Math.hypot(s.x - target.x, s.z - target.z) > 50) continue;
+    let already = false;
+    for (const m of mobs) if (m.stationary && Math.hypot(m.pos.x - s.x, m.pos.z - s.z) < 1.5) { already = true; break; }
+    if (!already) spawnMob(s.type === 'vape' ? 'vape_shopkeeper' : 'dodgy_shopkeeper', s.x, s.y, s.z);
+    pendingShopkeepers.splice(i, 1);
+  }
   // Find ground at target
   const bx = Math.floor(target.x), bz = Math.floor(target.z);
   let topY = SEA_LEVEL + 4;
@@ -2845,11 +2890,12 @@ function updateSmoke(dt) {
   }
 }
 
+let invCategory = 'blocks';
+let invCreativeShowAll = false;
 function renderInventory() {
-  const blocksEl = document.getElementById('invBlocks');
-  const itemsEl = document.getElementById('invItems');
+  const gridEl = document.getElementById('invGrid');
   const hbEl = document.getElementById('invHotbar');
-  blocksEl.innerHTML = ''; itemsEl.innerHTML = ''; hbEl.innerHTML = '';
+  gridEl.innerHTML = ''; hbEl.innerHTML = '';
   // Render hotbar copy with drag-targets
   for (let i = 0; i < 9; i++) {
     const slot = document.createElement('div'); slot.className = 'inv-slot' + (i === selectedSlot ? ' active' : '');
@@ -2874,67 +2920,99 @@ function renderInventory() {
     });
     hbEl.appendChild(slot);
   }
-  for (const b of HOTBAR) {
-    const count = player.inventory['b' + b.id];
-    if (settings.gamemode === 'survival' && (!count || count <= 0)) continue;
-    const el = makeSlotEl(b, count);
-    const payload = JSON.stringify({ type: 'b', id: b.id });
-    el.draggable = true;
-    el.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', payload); });
-    el.addEventListener('click', () => {
-      // Put into selected hotbar slot
-      player.hotbarLayout[selectedSlot] = { type: 'b', id: b.id };
-      renderInventory(); updateHotbar();
-    });
-    blocksEl.appendChild(el);
-  }
-  // Sword (always available; in survival you can still get one)
-  const sw = HOTBAR_FULL[HOTBAR_FULL.length - 1];
-  const swEl = makeSlotEl(sw);
-  swEl.draggable = true;
-  const swPayload = JSON.stringify({ type: 'sword' });
-  swEl.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', swPayload); });
-  swEl.addEventListener('click', () => { player.hotbarLayout[selectedSlot] = { type: 'sword' }; renderInventory(); updateHotbar(); });
-  blocksEl.appendChild(swEl);
-  for (const k in ITEMS) {
-    const item = ITEMS[k];
-    const count = player.inventory['i' + item.key] || 0;
-    // Hide items the player doesn't have unless creative
-    if (settings.gamemode !== 'creative' && count === 0 && !(item.vape && (player.vapePuffs[item.key] || 0) > 0)) continue;
-    const el = makeSlotEl(item, count);
-    if (item.vape) {
-      const puffs = player.vapePuffs[item.key] || 0;
-      const tot = count * PUFFS_PER_DEVICE + puffs;
-      if (tot > 0) {
-        const pp = document.createElement('div');
-        pp.style.cssText = 'position:absolute;top:-2px;right:2px;font-size:9px;background:rgba(0,0,0,0.7);padding:0 2px;color:' + (puffs < 10 ? '#f88' : '#8ff');
-        pp.textContent = puffs + 'p';
-        pp.title = `${tot} puffs total`;
-        el.appendChild(pp);
+  const showAll = invCreativeShowAll || settings.gamemode === 'creative';
+  if (invCategory === 'blocks') {
+    for (const b of HOTBAR) {
+      const count = player.inventory['b' + b.id];
+      if (!showAll && (!count || count <= 0)) continue;
+      const el = makeSlotEl(b, count);
+      const payload = JSON.stringify({ type: 'b', id: b.id });
+      el.draggable = true;
+      el.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', payload); });
+      el.addEventListener('click', () => {
+        player.hotbarLayout[selectedSlot] = { type: 'b', id: b.id };
+        if (invCreativeShowAll && (!player.inventory['b' + b.id] || player.inventory['b' + b.id] < 1)) {
+          player.inventory['b' + b.id] = (player.inventory['b' + b.id] || 0) + 64;
+        }
+        renderInventory(); updateHotbar();
+      });
+      gridEl.appendChild(el);
+    }
+  } else if (invCategory === 'tools') {
+    const sw = HOTBAR_FULL[HOTBAR_FULL.length - 1];
+    const swEl = makeSlotEl(sw);
+    swEl.draggable = true;
+    const swPayload = JSON.stringify({ type: 'sword' });
+    swEl.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', swPayload); });
+    swEl.addEventListener('click', () => { player.hotbarLayout[selectedSlot] = { type: 'sword' }; renderInventory(); updateHotbar(); });
+    gridEl.appendChild(swEl);
+  } else {
+    // Items / vapes / food
+    for (const k in ITEMS) {
+      const item = ITEMS[k];
+      // Categorize
+      let cat = 'items';
+      if (item.vape) cat = 'vapes';
+      else if (item.food) cat = 'food';
+      if (cat !== invCategory) continue;
+      const count = player.inventory['i' + item.key] || 0;
+      if (!showAll && count === 0 && !(item.vape && (player.vapePuffs[item.key] || 0) > 0)) continue;
+      const el = makeSlotEl(item, count);
+      if (item.vape) {
+        const puffs = player.vapePuffs[item.key] || 0;
+        const tot = count * PUFFS_PER_DEVICE + puffs;
+        if (tot > 0) {
+          const pp = document.createElement('div');
+          pp.style.cssText = 'position:absolute;top:-2px;right:2px;font-size:9px;background:rgba(0,0,0,0.7);padding:0 2px;color:' + (puffs < 10 ? '#f88' : '#8ff');
+          pp.textContent = puffs + 'p';
+          el.appendChild(pp);
+        }
       }
+      el.draggable = true;
+      const payload = JSON.stringify({ type: 'i', key: item.key });
+      el.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', payload); });
+      if (item.vape) {
+        el.title = 'Click to vape, Shift+click to put in hotbar';
+        el.addEventListener('click', (e) => {
+          if (invCreativeShowAll && count === 0) player.inventory['i' + item.key] = 1;
+          if (e.shiftKey) { player.hotbarLayout[selectedSlot] = { type: 'i', key: item.key }; renderInventory(); updateHotbar(); }
+          else if (puffVape(item)) renderInventory();
+        });
+      } else if (item.food) {
+        el.title = 'Click to eat, Shift+click to put in hotbar';
+        el.addEventListener('click', (e) => {
+          if (invCreativeShowAll && count === 0) player.inventory['i' + item.key] = 1;
+          if (e.shiftKey) { player.hotbarLayout[selectedSlot] = { type: 'i', key: item.key }; renderInventory(); updateHotbar(); }
+          else if (eatItem(item.key)) renderInventory();
+        });
+      } else {
+        el.title = 'Click to put in hotbar';
+        el.addEventListener('click', () => {
+          if (invCreativeShowAll && count === 0) player.inventory['i' + item.key] = 1;
+          player.hotbarLayout[selectedSlot] = { type: 'i', key: item.key };
+          renderInventory(); updateHotbar();
+        });
+      }
+      gridEl.appendChild(el);
     }
-    el.draggable = true;
-    const payload = JSON.stringify({ type: 'i', key: item.key });
-    el.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', payload); });
-    if (item.vape) {
-      el.title = 'Click to vape (or drag to hotbar)';
-      el.addEventListener('click', (e) => {
-        if (e.shiftKey) { player.hotbarLayout[selectedSlot] = { type: 'i', key: item.key }; renderInventory(); updateHotbar(); }
-        else if (puffVape(item)) renderInventory();
-      });
-    } else if (item.food) {
-      el.title = 'Click to eat (Shift+Click to put in hotbar)';
-      el.addEventListener('click', (e) => {
-        if (e.shiftKey) { player.hotbarLayout[selectedSlot] = { type: 'i', key: item.key }; renderInventory(); updateHotbar(); }
-        else if (eatItem(item.key)) renderInventory();
-      });
-    } else {
-      el.title = 'Drag to hotbar';
-      el.addEventListener('click', () => { player.hotbarLayout[selectedSlot] = { type: 'i', key: item.key }; renderInventory(); updateHotbar(); });
-    }
-    itemsEl.appendChild(el);
   }
 }
+document.querySelectorAll('.inv-cat').forEach(c => {
+  c.addEventListener('click', () => {
+    document.querySelectorAll('.inv-cat').forEach(x => x.classList.remove('active'));
+    c.classList.add('active');
+    invCategory = c.dataset.cat;
+    renderInventory();
+  });
+});
+document.getElementById('invCreativeBtn').addEventListener('click', () => {
+  invCreativeShowAll = !invCreativeShowAll;
+  document.getElementById('invCreativeBtn').classList.toggle('on', invCreativeShowAll);
+  document.getElementById('invCreativeBtn').textContent = invCreativeShowAll ? 'Creative ON (all items)' : 'Creative (Show All)';
+  renderInventory();
+});
+document.getElementById('invModalClose').addEventListener('click', toggleInventory);
+document.getElementById('craftModalClose').addEventListener('click', toggleCrafting);
 invModal.addEventListener('click', (e) => { if (e.target === invModal) toggleInventory(); });
 craftModal.addEventListener('click', (e) => { if (e.target === craftModal) toggleCrafting(); });
 
@@ -3043,6 +3121,7 @@ function renderFurnace() {
   }
 }
 document.getElementById('furnaceClose').addEventListener('click', toggleFurnace);
+document.getElementById('furnaceModalCloseX').addEventListener('click', toggleFurnace);
 furnaceModal.addEventListener('click', (e) => { if (e.target === furnaceModal) toggleFurnace(); });
 
 // ============== Vape Shop ==============
@@ -3111,6 +3190,8 @@ function renderVapeShop() {
   }
 }
 document.getElementById('vapeClose').addEventListener('click', toggleVapeShop);
+document.getElementById('vapeModalCloseX').addEventListener('click', toggleVapeShop);
+document.getElementById('dialogueModalCloseX').addEventListener('click', () => { dialogueModal.classList.add('hidden'); renderer.domElement.requestPointerLock(); });
 vapeModal.addEventListener('click', (e) => { if (e.target === vapeModal) toggleVapeShop(); });
 
 // ============== Dodgy Shop ==============
@@ -3665,12 +3746,12 @@ document.getElementById('mmCreate').addEventListener('click', () => {
   resetWorld(seed);
   player.pos.set(8, 80, 8); player.vel.set(0, 0, 0); player.hp = player.maxHp; player.hunger = player.maxHunger;
   player.inventory = {}; player.vapePuffs = {}; player.nicotine = 0;
-  if (settings.gamemode === 'survival') {
-    // Empty hotbar + nearly-empty starter vape
-    player.inventory['i' + ITEMS.VAPE_MANGO.key] = 1;
-    player.vapePuffs[ITEMS.VAPE_MANGO.key] = 5; // nearly empty
-    showToast('You have a nearly-empty vape. 5 puffs left!');
-  }
+  player.hotbarLayout = defaultHotbarLayout();
+  // Both gamemodes: start with one nearly-used-up Mango vape and loyalty-card materials
+  player.vapePuffs[ITEMS.VAPE_MANGO.key] = 20; // partway used
+  player.inventory['i' + ITEMS.GOLD_INGOT.key] = 1;
+  player.inventory['i' + ITEMS.WHEAT.key] = 2;
+  showToast('Starter kit: 1 Vape (20/60 puffs), 1 Gold Ingot, 2 Wheat for loyalty card');
   document.getElementById('saveSlot').value = name;
   saveGame();
   mainMenu.classList.add('hidden'); overlay.classList.remove('hidden');
