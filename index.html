@@ -1916,24 +1916,42 @@ const swordMesh = (() => {
 const handBlockMesh = (() => {
   const g = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.35), new THREE.MeshLambertMaterial({ map: atlasTexture }));
   g.position.set(0.45, -0.4, -0.7);
+  g.rotation.set(0.3, -0.4, 0);
   return g;
+})();
+// Item sprite (vape, food, materials) shown in hand
+const handItemTexture = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 32;
+  return { canvas: c, tex: new THREE.CanvasTexture(c) };
+})();
+handItemTexture.tex.magFilter = THREE.NearestFilter;
+handItemTexture.tex.minFilter = THREE.NearestFilter;
+const handItemSprite = (() => {
+  const mat = new THREE.SpriteMaterial({ map: handItemTexture.tex, transparent: true });
+  const s = new THREE.Sprite(mat);
+  s.scale.set(0.4, 0.4, 1);
+  s.position.set(0.42, -0.35, -0.7);
+  return s;
 })();
 handGroup.add(swordMesh);
 handGroup.add(handBlockMesh);
+handGroup.add(handItemSprite);
+let _lastHandItemKey = null;
 
 function updateHand() {
   const item = getHeldItem();
   const isSword = item && item.weapon === 'sword';
+  const isBlock = !isSword && item && item.id !== undefined;
+  const isItem = !isSword && !isBlock && item && item.key !== undefined;
   swordMesh.visible = isSword;
-  handBlockMesh.visible = !isSword && item && item.id !== undefined;
-  if (handBlockMesh.visible) {
-    // Apply UV-mapped texture for the held block: regenerate UV
+  handBlockMesh.visible = isBlock;
+  handItemSprite.visible = isItem;
+  if (isBlock) {
     const tiles = BLOCK_TILES[item.id];
     if (tiles) {
       const geo = handBlockMesh.geometry;
-      const faceOrder = [0, 1, 2, 3, 4, 5]; // BoxGeometry: +x,-x,+y,-y,+z,-z
       const uvs = [];
-      for (const f of faceOrder) {
+      for (let f = 0; f < 6; f++) {
         const [u0, v0, u1, v1] = tileUVs(tiles[f]);
         uvs.push(u1, v1, u0, v1, u1, v0, u0, v0);
       }
@@ -1941,12 +1959,24 @@ function updateHand() {
       geo.attributes.uv.needsUpdate = true;
     }
   }
+  if (isItem && _lastHandItemKey !== item.key) {
+    _lastHandItemKey = item.key;
+    const ctx = handItemTexture.canvas.getContext('2d');
+    ctx.clearRect(0, 0, 32, 32);
+    ctx.imageSmoothingEnabled = false;
+    ctx.save(); ctx.scale(2, 2); drawItemGlyph(ctx, item.key); ctx.restore();
+    handItemTexture.tex.needsUpdate = true;
+  } else if (!isItem) {
+    _lastHandItemKey = null;
+  }
   // Attack swing
   if (player.attackTime > 0) {
     const t = player.attackTime / 0.25;
-    swordMesh.rotation.set(-0.3 - Math.sin(t * Math.PI) * 0.8, 0.5, 0.3 - Math.sin(t * Math.PI) * 0.4);
+    swordMesh.rotation.set(-0.25 - Math.sin(t * Math.PI) * 0.8, 0.5, 0.3 - Math.sin(t * Math.PI) * 0.4);
+    handBlockMesh.rotation.set(0.3 - Math.sin(t * Math.PI) * 0.6, -0.4, 0);
   } else {
-    swordMesh.rotation.set(-0.3, 0.5, 0.3);
+    swordMesh.rotation.set(-0.25, 0.5, 0.3);
+    handBlockMesh.rotation.set(0.3, -0.4, 0);
   }
 }
 
