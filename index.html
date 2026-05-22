@@ -319,7 +319,7 @@
 import * as THREE from 'three';
 
 // VERSION — replaced on every commit by the pre-commit script below
-const VERSION = 'v0.25 (aa1cb45)';
+const VERSION = 'v0.26 (30503e0)';
 
 // ============== Random / Noise ==============
 function mulberry32(seed) {
@@ -502,6 +502,10 @@ const BLOCKS = {
   BUTTON_ON:   { id: 79, name: 'Button (Pressed)', solid: false, plant: true },
   REDSTONE_WIRE:{ id: 80, name: 'Redstone Wire',solid: false, plant: true },
   REDSTONE_WIRE_ON:{ id: 81, name: 'Redstone (Powered)', solid: false, plant: true },
+  MEGA_TNT:    { id: 82, name: 'Mega TNT',      solid: true },
+  C4:          { id: 83, name: 'C4 Charge',     solid: true },
+  NUKE:        { id: 84, name: 'Nuke',          solid: true },
+  ANTIMATTER:  { id: 85, name: 'Antimatter Bomb', solid: true },
 };
 const BLOCK_BY_ID = {};
 for (const k in BLOCKS) BLOCK_BY_ID[BLOCKS[k].id] = BLOCKS[k];
@@ -518,6 +522,7 @@ const HOTBAR = [
   BLOCKS.WHITE_WOOL, BLOCKS.RED_WOOL, BLOCKS.BLUE_WOOL, BLOCKS.YELLOW_WOOL, BLOCKS.BLACK_WOOL,
   BLOCKS.GRAVEL, BLOCKS.PODZOL, BLOCKS.MYCELIUM, BLOCKS.DOOR_CLOSED,
   BLOCKS.LEVER_OFF, BLOCKS.BUTTON, BLOCKS.REDSTONE_WIRE,
+  BLOCKS.MEGA_TNT, BLOCKS.C4, BLOCKS.NUKE, BLOCKS.ANTIMATTER,
 ];
 const isSolid = (id) => id !== 0 && BLOCK_BY_ID[id] && BLOCK_BY_ID[id].solid;
 const isOpaque = (id) => id !== 0 && BLOCK_BY_ID[id] && !BLOCK_BY_ID[id].transparent && !BLOCK_BY_ID[id].plant;
@@ -734,6 +739,14 @@ regTile('redstone_wire_on', (ctx) => {
   // sparkle pixels
   ctx.fillStyle = '#ffaaaa'; for (let i = 0; i < 6; i++) ctx.fillRect(Math.random()*TILE|0, 6+Math.random()*4|0, 1, 1);
 });
+regTile('mega_tnt_top', (ctx) => { ctx.fillStyle = '#222'; ctx.fillRect(0,0,TILE,TILE); ctx.fillStyle = '#ff4020'; ctx.beginPath(); ctx.arc(8,8,6,0,Math.PI*2); ctx.fill(); ctx.fillStyle = '#000'; ctx.fillRect(7,1,2,5); ctx.fillStyle = '#ffe040'; ctx.fillText('M', 5, 11); });
+regTile('mega_tnt_side', (ctx) => { ctx.fillStyle = '#7a2020'; ctx.fillRect(0,0,TILE,TILE); ctx.fillStyle = '#ff3030'; for (let y = 2; y < TILE; y += 4) ctx.fillRect(0, y, TILE, 2); ctx.fillStyle = '#fff'; ctx.font = 'bold 8px sans-serif'; ctx.fillText('MEGA', 0, 11); });
+regTile('c4_top', (ctx) => { ctx.fillStyle = '#222'; ctx.fillRect(0,0,TILE,TILE); ctx.fillStyle = '#d8d4a0'; ctx.fillRect(2, 2, 12, 12); ctx.fillStyle = '#ff2030'; ctx.fillRect(6, 6, 4, 4); });
+regTile('c4_side', (ctx) => { ctx.fillStyle = '#d8d4a0'; ctx.fillRect(0,0,TILE,TILE); ctx.fillStyle = '#5a5a3a'; ctx.font = 'bold 6px sans-serif'; ctx.fillText('C4', 4, 10); ctx.fillStyle = '#ff2030'; ctx.fillRect(0, TILE-2, TILE, 2); });
+regTile('nuke_top', (ctx) => { ctx.fillStyle = '#444'; ctx.fillRect(0,0,TILE,TILE); ctx.fillStyle = '#ffe040'; ctx.beginPath(); ctx.arc(8,8,5,0,Math.PI*2); ctx.fill(); ctx.fillStyle = '#000'; for (let a = 0; a < 3; a++) { ctx.save(); ctx.translate(8, 8); ctx.rotate(a * Math.PI * 2 / 3); ctx.beginPath(); ctx.arc(0, 0, 5, Math.PI/6, Math.PI/6 + Math.PI/3); ctx.lineTo(0, 0); ctx.closePath(); ctx.fill(); ctx.restore(); } ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(8,8,1.5,0,Math.PI*2); ctx.fill(); });
+regTile('nuke_side', (ctx) => { ctx.fillStyle = '#3a3a3a'; ctx.fillRect(0,0,TILE,TILE); ctx.fillStyle = '#ffe040'; ctx.fillRect(0, 4, TILE, 2); ctx.fillRect(0, TILE-6, TILE, 2); ctx.fillStyle = '#000'; ctx.font = 'bold 6px sans-serif'; ctx.fillText('NUKE', 1, 12); });
+regTile('antimatter_top', (ctx) => { ctx.fillStyle = '#000'; ctx.fillRect(0,0,TILE,TILE); ctx.fillStyle = '#a040ff'; ctx.beginPath(); ctx.arc(8,8,6,0,Math.PI*2); ctx.fill(); ctx.fillStyle = '#ff80ff'; ctx.beginPath(); ctx.arc(8,8,3,0,Math.PI*2); ctx.fill(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(8,8,1,0,Math.PI*2); ctx.fill(); });
+regTile('antimatter_side', (ctx) => { ctx.fillStyle = '#100020'; ctx.fillRect(0,0,TILE,TILE); for (let i = 0; i < 20; i++) { ctx.fillStyle = ['#a040ff','#ff80ff','#fff'][i%3]; ctx.fillRect(Math.random()*TILE|0, Math.random()*TILE|0, 1, 1); } ctx.strokeStyle = '#ff80ff'; ctx.strokeRect(0, 0, TILE-1, TILE-1); });
 regTile('menu_sign', (ctx) => {
   ctx.fillStyle = '#1a0a2a'; ctx.fillRect(0, 0, TILE, TILE);
   ctx.fillStyle = '#ff00ff'; ctx.fillRect(0, 0, TILE, 1); ctx.fillRect(0, TILE-1, TILE, 1);
@@ -826,6 +839,10 @@ const BLOCK_TILES = {
   [BLOCKS.BUTTON_ON.id]: Array(6).fill('button_on'),
   [BLOCKS.REDSTONE_WIRE.id]: Array(6).fill('redstone_wire'),
   [BLOCKS.REDSTONE_WIRE_ON.id]: Array(6).fill('redstone_wire_on'),
+  [BLOCKS.MEGA_TNT.id]: ['mega_tnt_side','mega_tnt_side','mega_tnt_top','mega_tnt_top','mega_tnt_side','mega_tnt_side'],
+  [BLOCKS.C4.id]: ['c4_side','c4_side','c4_top','c4_top','c4_side','c4_side'],
+  [BLOCKS.NUKE.id]: ['nuke_side','nuke_side','nuke_top','nuke_top','nuke_side','nuke_side'],
+  [BLOCKS.ANTIMATTER.id]: ['antimatter_side','antimatter_side','antimatter_top','antimatter_top','antimatter_side','antimatter_side'],
 };
 
 const atlasTexture = new THREE.CanvasTexture(atlasCanvas);
@@ -2259,14 +2276,15 @@ document.addEventListener('mousedown', (e) => {
     if (blockId === BLOCKS.CRAFTBL.id) { toggleCrafting(); return; }
     // Furnace opens smelting
     if (blockId === BLOCKS.FURNACE.id) { toggleFurnace(); return; }
-    // TNT prime: only with Flint and Steel in hand (Minecraft-style)
-    if (blockId === BLOCKS.TNT.id) {
+    // Explosive prime: only with Flint and Steel in hand (Minecraft-style)
+    if (EXPLOSIVE_SPECS[blockId]) {
       const held = getHeldItem();
+      const spec = EXPLOSIVE_SPECS[blockId];
       if (held && held.key === 'flint_and_steel') {
-        primeTNT(hit.block.x, hit.block.y, hit.block.z, 4.0);
-        showToast('TNT primed! Run!');
+        primeTNT(hit.block.x, hit.block.y, hit.block.z);
+        showToast(`${spec.name} primed! Run!`);
       } else {
-        showToast('Need Flint & Steel (or a redstone signal) to light TNT.');
+        showToast(`Need Flint & Steel (or a redstone signal) to light ${spec.name}.`);
       }
       return;
     }
@@ -3304,8 +3322,8 @@ function propagateRedstone() {
     if (strength <= 0) continue;
     for (const [nx, ny, nz] of neighbors(x, y, z)) {
       const id = world.getBlock(nx, ny, nz);
-      // Prime TNT next to any powered source
-      if (id === BLOCKS.TNT.id) {
+      // Prime any explosive next to a powered source
+      if (EXPLOSIVE_SPECS[id]) {
         primeTNT(nx, ny, nz, 0.6);
         continue;
       }
@@ -3335,14 +3353,21 @@ function updateRedstoneTimers(dt) {
 }
 
 // ============== TNT / Explosions ==============
+const EXPLOSIVE_SPECS = {
+  [BLOCKS.TNT.id]:        { name: 'TNT',        radius: 4,  fuse: 4.0, particleCount: 80,  flashColor: 0xffffff, mushroom: false },
+  [BLOCKS.MEGA_TNT.id]:   { name: 'Mega TNT',   radius: 8,  fuse: 5.0, particleCount: 180, flashColor: 0xffaa20, mushroom: false },
+  [BLOCKS.C4.id]:         { name: 'C4',         radius: 6,  fuse: 2.0, particleCount: 120, flashColor: 0xff4040, mushroom: false, focused: true },
+  [BLOCKS.NUKE.id]:       { name: 'Nuke',       radius: 16, fuse: 8.0, particleCount: 400, flashColor: 0xffee80, mushroom: true },
+  [BLOCKS.ANTIMATTER.id]: { name: 'Antimatter', radius: 28, fuse: 10.0, particleCount: 700, flashColor: 0xff80ff, mushroom: true, ignoreBedrock: true },
+};
 const primedTNTs = [];
-function primeTNT(x, y, z, fuse = 4.0) {
-  // Remove the block from the world (it becomes a fused entity)
+function primeTNT(x, y, z, fuseOverride, blockIdOverride) {
+  const id = blockIdOverride !== undefined ? blockIdOverride : world.getBlock(x, y, z);
+  const spec = EXPLOSIVE_SPECS[id] || EXPLOSIVE_SPECS[BLOCKS.TNT.id];
   world.setBlock(x, y, z, 0);
   const group = new THREE.Group();
   const tnt = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.95, 0.95), new THREE.MeshLambertMaterial({ map: atlasTexture }));
-  // Apply TNT UVs
-  const tiles = BLOCK_TILES[BLOCKS.TNT.id];
+  const tiles = BLOCK_TILES[id] || BLOCK_TILES[BLOCKS.TNT.id];
   if (tiles) {
     const uvs = [];
     for (let f = 0; f < 6; f++) {
@@ -3352,58 +3377,96 @@ function primeTNT(x, y, z, fuse = 4.0) {
     tnt.geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   }
   group.add(tnt);
-  const flash = new THREE.Mesh(new THREE.BoxGeometry(1.01, 1.01, 1.01), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5 }));
+  const flash = new THREE.Mesh(new THREE.BoxGeometry(1.01, 1.01, 1.01), new THREE.MeshBasicMaterial({ color: spec.flashColor, transparent: true, opacity: 0.5 }));
   group.add(flash);
   group.position.set(x + 0.5, y + 0.5, z + 0.5);
   scene.add(group);
-  primedTNTs.push({ x, y, z, fuse, group, flash });
+  primedTNTs.push({ x, y, z, fuse: fuseOverride != null ? fuseOverride : spec.fuse, maxFuse: spec.fuse, group, flash, spec, id });
 }
-function detonate(x, y, z, radius = 4) {
+function detonate(x, y, z, spec) {
+  spec = spec || EXPLOSIVE_SPECS[BLOCKS.TNT.id];
+  const radius = spec.radius;
+  const damageScale = (spec.name === 'TNT') ? 4 : (radius / 2);
   // Damage entities
   const px = player.pos.x, py = player.pos.y - player.height / 2, pz = player.pos.z;
   const pd = Math.hypot(px - (x + 0.5), py - (y + 0.5), pz - (z + 0.5));
   if (pd < radius + 2 && !settings.cheatGodMode) {
-    const dmg = Math.max(0, (radius + 2 - pd)) * 4;
+    const dmg = Math.max(0, (radius + 2 - pd)) * damageScale;
     player.hp = Math.max(0, player.hp - dmg);
-    // Knockback
     const dirVec = new THREE.Vector3(px - (x + 0.5), py - (y + 0.5) + 0.5, pz - (z + 0.5)).normalize();
-    player.vel.x += dirVec.x * 14; player.vel.y += Math.max(6, dirVec.y * 14); player.vel.z += dirVec.z * 14;
+    const k = Math.min(40, 14 + radius);
+    player.vel.x += dirVec.x * k; player.vel.y += Math.max(6, dirVec.y * k); player.vel.z += dirVec.z * k;
     playerHurt();
   }
   for (const m of mobs) {
     const d = Math.hypot(m.pos.x - (x + 0.5), m.pos.y - (y + 0.5), m.pos.z - (z + 0.5));
     if (d < radius + 2 && !m.stationary) {
-      m.hp -= Math.max(0, (radius + 2 - d)) * 12;
+      m.hp -= Math.max(0, (radius + 2 - d)) * (damageScale * 3);
       const dirM = new THREE.Vector3(m.pos.x - (x + 0.5), m.pos.y - (y + 0.5) + 0.3, m.pos.z - (z + 0.5)).normalize();
-      m.vel.x += dirM.x * 10; m.vel.y += 6; m.vel.z += dirM.z * 10;
+      const k = 10 + radius;
+      m.vel.x += dirM.x * k; m.vel.y += 6 + radius / 2; m.vel.z += dirM.z * k;
     }
   }
-  // Destroy blocks in spherical radius
+  // Destroy blocks
   for (let dy = -radius; dy <= radius; dy++) {
     for (let dx = -radius; dx <= radius; dx++) {
       for (let dz = -radius; dz <= radius; dz++) {
         const d = Math.sqrt(dx*dx + dy*dy + dz*dz);
         if (d > radius) continue;
-        // Falloff: probability of breaking decreases with distance
-        const breakChance = 1 - (d / radius) * 0.6;
+        // Big bombs almost always break; small TNT has more falloff
+        const fall = (radius <= 4) ? 0.6 : (radius <= 8 ? 0.3 : 0.1);
+        const breakChance = 1 - (d / radius) * fall;
         if (Math.random() > breakChance) continue;
         const bx = x + dx, by = y + dy, bz = z + dz;
         const id = world.getBlock(bx, by, bz);
-        if (id === 0 || id === BLOCKS.BEDROCK.id) continue;
-        // Chain-detonate other TNT
-        if (id === BLOCKS.TNT.id) { primeTNT(bx, by, bz, 0.1 + Math.random() * 0.3); continue; }
+        if (id === 0) continue;
+        if (id === BLOCKS.BEDROCK.id && !spec.ignoreBedrock) continue;
+        // Chain-detonate other explosives
+        if (EXPLOSIVE_SPECS[id]) { primeTNT(bx, by, bz, 0.1 + Math.random() * 0.3); continue; }
         world.setBlock(bx, by, bz, 0);
       }
     }
   }
-  // Visual explosion particles
-  for (let i = 0; i < 80; i++) {
-    const c1 = Math.random() < 0.5 ? 0xff6020 : (Math.random() < 0.5 ? 0xffaa30 : 0x222222);
-    const m = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), new THREE.MeshBasicMaterial({ color: c1, transparent: true, opacity: 0.95 }));
+  // Particles
+  const pcount = spec.particleCount || 80;
+  for (let i = 0; i < pcount; i++) {
+    let c1;
+    if (spec.name === 'Antimatter') c1 = Math.random() < 0.5 ? 0xa040ff : (Math.random() < 0.5 ? 0xff80ff : 0xffffff);
+    else if (spec.name === 'Nuke') c1 = Math.random() < 0.4 ? 0xffe080 : (Math.random() < 0.6 ? 0xff8040 : 0x555555);
+    else if (spec.name === 'C4') c1 = Math.random() < 0.5 ? 0xff4040 : (Math.random() < 0.5 ? 0xddccaa : 0x222222);
+    else c1 = Math.random() < 0.5 ? 0xff6020 : (Math.random() < 0.5 ? 0xffaa30 : 0x222222);
+    const size = 0.18 + Math.random() * 0.18 * (radius / 4);
+    const m = new THREE.Mesh(new THREE.BoxGeometry(size, size, size), new THREE.MeshBasicMaterial({ color: c1, transparent: true, opacity: 0.95 }));
     m.position.set(x + 0.5, y + 0.5, z + 0.5);
     scene.add(m);
-    const dir = new THREE.Vector3((Math.random()-0.5)*2, Math.random()*1.5, (Math.random()-0.5)*2).normalize().multiplyScalar(2 + Math.random() * 6);
-    smokeParticles.push({ mesh: m, life: 1.2 + Math.random() * 0.6, vel: dir });
+    let dir;
+    if (spec.mushroom) {
+      // Mushroom cloud: tight pillar going up then bloom outward
+      const phase = i / pcount;
+      if (phase < 0.45) {
+        // Stem: upward column
+        dir = new THREE.Vector3((Math.random()-0.5)*0.6, 2 + Math.random() * 4, (Math.random()-0.5)*0.6);
+      } else {
+        // Cap: outward fan, higher up
+        const ang = Math.random() * Math.PI * 2;
+        const r = 4 + Math.random() * (radius / 3);
+        dir = new THREE.Vector3(Math.cos(ang) * r * 0.5, 3 + Math.random() * 2, Math.sin(ang) * r * 0.5);
+      }
+    } else if (spec.focused) {
+      // C4: cone
+      dir = new THREE.Vector3((Math.random()-0.5)*2, Math.random()*2.5, (Math.random()-0.5)*2).normalize().multiplyScalar(3 + Math.random() * (radius + 2));
+    } else {
+      dir = new THREE.Vector3((Math.random()-0.5)*2, Math.random()*1.5, (Math.random()-0.5)*2).normalize().multiplyScalar(2 + Math.random() * (radius + 4));
+    }
+    const life = spec.mushroom ? (2 + Math.random() * 2) : (1.2 + Math.random() * 0.6);
+    smokeParticles.push({ mesh: m, life, vel: dir });
+  }
+  if (spec.mushroom) {
+    // Initial flash overlay
+    const flash = document.getElementById('vapeCloud');
+    flash.classList.add('show');
+    setTimeout(() => flash.classList.remove('show'), 1100);
+    showToast(`☢ ${spec.name.toUpperCase()} DETONATED ☢`);
   }
 }
 function updatePrimedTNTs(dt) {
@@ -3411,13 +3474,13 @@ function updatePrimedTNTs(dt) {
     const t = primedTNTs[i];
     t.fuse -= dt;
     // Flash effect: scale up & toggle white overlay opacity
-    const f = Math.max(0, Math.min(1, 1 - t.fuse / 4));
+    const f = Math.max(0, Math.min(1, 1 - t.fuse / (t.maxFuse || 4)));
     const flashOn = (Math.sin(performance.now() * 0.012 * (1 + f * 2)) + 1) / 2;
     t.flash.material.opacity = 0.2 + flashOn * 0.6;
     t.group.scale.setScalar(1 + Math.sin(performance.now() * 0.02) * 0.05 * (0.5 + f));
     if (t.fuse <= 0) {
       scene.remove(t.group);
-      detonate(t.x, t.y, t.z);
+      detonate(t.x, t.y, t.z, t.spec);
       primedTNTs.splice(i, 1);
     }
   }
@@ -4165,6 +4228,10 @@ const RECIPES = [
   { in: [['i' + ITEMS.STICK.key, 1], ['b' + BLOCKS.COBBLE.id, 1]], out: ['b' + BLOCKS.LEVER_OFF.id, 1], label: '1 Stick + 1 Cobble → Lever' },
   { in: [['b' + BLOCKS.STONE.id, 1]], out: ['b' + BLOCKS.BUTTON.id, 1], label: '1 Stone → Button' },
   { in: [['i' + ITEMS.REDSTONE.key, 1]], out: ['b' + BLOCKS.REDSTONE_WIRE.id, 1], label: '1 Redstone Dust → Wire' },
+  { in: [['b' + BLOCKS.TNT.id, 4], ['i' + ITEMS.REDSTONE.key, 4]], out: ['b' + BLOCKS.MEGA_TNT.id, 1], label: '4 TNT + 4 Redstone → Mega TNT' },
+  { in: [['b' + BLOCKS.TNT.id, 2], ['i' + ITEMS.IRON_INGOT.key, 1]], out: ['b' + BLOCKS.C4.id, 1], label: '2 TNT + 1 Iron → C4 Charge' },
+  { in: [['b' + BLOCKS.MEGA_TNT.id, 4], ['b' + BLOCKS.IRON.id, 1], ['b' + BLOCKS.OBSID.id, 2]], out: ['b' + BLOCKS.NUKE.id, 1], label: '4 Mega TNT + 1 Iron Block + 2 Obsidian → Nuke' },
+  { in: [['b' + BLOCKS.NUKE.id, 1], ['i' + ITEMS.DIAMOND.key, 4], ['i' + ITEMS.EYE_OF_ENDER.key, 1]], out: ['b' + BLOCKS.ANTIMATTER.id, 1], label: '1 Nuke + 4 Diamonds + 1 Eye of Ender → Antimatter Bomb' },
 ];
 function lookupKey(k) {
   if (k.startsWith('b')) return BLOCK_BY_ID[parseInt(k.slice(1))];
