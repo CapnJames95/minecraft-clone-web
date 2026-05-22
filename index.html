@@ -319,7 +319,7 @@
 import * as THREE from 'three';
 
 // VERSION — replaced on every commit by the pre-commit script below
-const VERSION = 'v0.22 (1a95d24)';
+const VERSION = 'v0.23 (2fc95c9)';
 
 // ============== Random / Noise ==============
 function mulberry32(seed) {
@@ -2175,6 +2175,12 @@ document.addEventListener('mousedown', (e) => {
     if (blockId === BLOCKS.CRAFTBL.id) { toggleCrafting(); return; }
     // Furnace opens smelting
     if (blockId === BLOCKS.FURNACE.id) { toggleFurnace(); return; }
+    // TNT prime on right-click
+    if (blockId === BLOCKS.TNT.id) {
+      primeTNT(hit.block.x, hit.block.y, hit.block.z, 4.0);
+      showToast('TNT primed! Run!');
+      return;
+    }
     // Door open/close — 2-block-tall doors; toggle both halves and auto-close after 5s
     if (blockId === BLOCKS.DOOR_CLOSED.id || blockId === BLOCKS.DOOR_OPEN.id) {
       let by = hit.block.y;
@@ -2947,6 +2953,8 @@ function drawItemGlyph(ctx, key) {
   else if (key === 'apple') { ctx.fillStyle = '#d02020'; ctx.beginPath(); ctx.arc(8, 9, 5, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#3a7030'; ctx.fillRect(8, 2, 2, 4); }
   else if (key === 'pork') { ctx.fillStyle = '#f0a0a0'; ctx.fillRect(3, 5, 10, 7); ctx.fillStyle = '#fff'; ctx.fillRect(4, 6, 8, 2); }
   else if (key === 'beef') { ctx.fillStyle = '#aa3322'; ctx.fillRect(3, 5, 10, 7); ctx.fillStyle = '#ddaa88'; ctx.fillRect(4, 6, 8, 2); }
+  else if (key === 'cooked_pork') { ctx.fillStyle = '#c8704a'; ctx.fillRect(3, 5, 10, 7); ctx.fillStyle = '#5a2810'; ctx.fillRect(3, 5, 10, 1); ctx.fillRect(3, 11, 10, 1); ctx.fillStyle = '#f0c090'; ctx.fillRect(4, 6, 8, 2); }
+  else if (key === 'cooked_beef') { ctx.fillStyle = '#7a4020'; ctx.fillRect(3, 5, 10, 7); ctx.fillStyle = '#3a1808'; ctx.fillRect(3, 5, 10, 1); ctx.fillRect(3, 11, 10, 1); ctx.fillStyle = '#aa6030'; ctx.fillRect(4, 6, 8, 2); }
   else if (key === 'bone') { ctx.fillStyle = '#eee'; ctx.fillRect(3, 7, 10, 2); ctx.fillRect(2, 5, 3, 6); ctx.fillRect(11, 5, 3, 6); }
   else if (key === 'rotten') { ctx.fillStyle = '#557030'; ctx.fillRect(3, 5, 10, 7); ctx.fillStyle = '#334020'; ctx.fillRect(5, 7, 2, 2); ctx.fillRect(9, 8, 2, 2); }
   else if (key === 'coal') { ctx.fillStyle = '#1a1a1a'; ctx.fillRect(3, 4, 10, 9); ctx.fillStyle = '#555'; ctx.fillRect(5, 6, 2, 2); }
@@ -3136,6 +3144,95 @@ function simulateMouse(button) {
   const e = new MouseEvent('mousedown', { button, bubbles: true });
   e._fromGamepad = true;
   document.dispatchEvent(e);
+}
+
+// ============== TNT / Explosions ==============
+const primedTNTs = [];
+function primeTNT(x, y, z, fuse = 4.0) {
+  // Remove the block from the world (it becomes a fused entity)
+  world.setBlock(x, y, z, 0);
+  const group = new THREE.Group();
+  const tnt = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.95, 0.95), new THREE.MeshLambertMaterial({ map: atlasTexture }));
+  // Apply TNT UVs
+  const tiles = BLOCK_TILES[BLOCKS.TNT.id];
+  if (tiles) {
+    const uvs = [];
+    for (let f = 0; f < 6; f++) {
+      const [u0, v0, u1, v1] = tileUVs(tiles[f]);
+      uvs.push(u1, v1, u0, v1, u1, v0, u0, v0);
+    }
+    tnt.geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  }
+  group.add(tnt);
+  const flash = new THREE.Mesh(new THREE.BoxGeometry(1.01, 1.01, 1.01), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5 }));
+  group.add(flash);
+  group.position.set(x + 0.5, y + 0.5, z + 0.5);
+  scene.add(group);
+  primedTNTs.push({ x, y, z, fuse, group, flash });
+}
+function detonate(x, y, z, radius = 4) {
+  // Damage entities
+  const px = player.pos.x, py = player.pos.y - player.height / 2, pz = player.pos.z;
+  const pd = Math.hypot(px - (x + 0.5), py - (y + 0.5), pz - (z + 0.5));
+  if (pd < radius + 2 && !settings.cheatGodMode) {
+    const dmg = Math.max(0, (radius + 2 - pd)) * 4;
+    player.hp = Math.max(0, player.hp - dmg);
+    // Knockback
+    const dirVec = new THREE.Vector3(px - (x + 0.5), py - (y + 0.5) + 0.5, pz - (z + 0.5)).normalize();
+    player.vel.x += dirVec.x * 14; player.vel.y += Math.max(6, dirVec.y * 14); player.vel.z += dirVec.z * 14;
+    playerHurt();
+  }
+  for (const m of mobs) {
+    const d = Math.hypot(m.pos.x - (x + 0.5), m.pos.y - (y + 0.5), m.pos.z - (z + 0.5));
+    if (d < radius + 2 && !m.stationary) {
+      m.hp -= Math.max(0, (radius + 2 - d)) * 12;
+      const dirM = new THREE.Vector3(m.pos.x - (x + 0.5), m.pos.y - (y + 0.5) + 0.3, m.pos.z - (z + 0.5)).normalize();
+      m.vel.x += dirM.x * 10; m.vel.y += 6; m.vel.z += dirM.z * 10;
+    }
+  }
+  // Destroy blocks in spherical radius
+  for (let dy = -radius; dy <= radius; dy++) {
+    for (let dx = -radius; dx <= radius; dx++) {
+      for (let dz = -radius; dz <= radius; dz++) {
+        const d = Math.sqrt(dx*dx + dy*dy + dz*dz);
+        if (d > radius) continue;
+        // Falloff: probability of breaking decreases with distance
+        const breakChance = 1 - (d / radius) * 0.6;
+        if (Math.random() > breakChance) continue;
+        const bx = x + dx, by = y + dy, bz = z + dz;
+        const id = world.getBlock(bx, by, bz);
+        if (id === 0 || id === BLOCKS.BEDROCK.id) continue;
+        // Chain-detonate other TNT
+        if (id === BLOCKS.TNT.id) { primeTNT(bx, by, bz, 0.1 + Math.random() * 0.3); continue; }
+        world.setBlock(bx, by, bz, 0);
+      }
+    }
+  }
+  // Visual explosion particles
+  for (let i = 0; i < 80; i++) {
+    const c1 = Math.random() < 0.5 ? 0xff6020 : (Math.random() < 0.5 ? 0xffaa30 : 0x222222);
+    const m = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), new THREE.MeshBasicMaterial({ color: c1, transparent: true, opacity: 0.95 }));
+    m.position.set(x + 0.5, y + 0.5, z + 0.5);
+    scene.add(m);
+    const dir = new THREE.Vector3((Math.random()-0.5)*2, Math.random()*1.5, (Math.random()-0.5)*2).normalize().multiplyScalar(2 + Math.random() * 6);
+    smokeParticles.push({ mesh: m, life: 1.2 + Math.random() * 0.6, vel: dir });
+  }
+}
+function updatePrimedTNTs(dt) {
+  for (let i = primedTNTs.length - 1; i >= 0; i--) {
+    const t = primedTNTs[i];
+    t.fuse -= dt;
+    // Flash effect: scale up & toggle white overlay opacity
+    const f = Math.max(0, Math.min(1, 1 - t.fuse / 4));
+    const flashOn = (Math.sin(performance.now() * 0.012 * (1 + f * 2)) + 1) / 2;
+    t.flash.material.opacity = 0.2 + flashOn * 0.6;
+    t.group.scale.setScalar(1 + Math.sin(performance.now() * 0.02) * 0.05 * (0.5 + f));
+    if (t.fuse <= 0) {
+      scene.remove(t.group);
+      detonate(t.x, t.y, t.z);
+      primedTNTs.splice(i, 1);
+    }
+  }
 }
 
 // ============== Doors ==============
@@ -4032,6 +4129,7 @@ function animate(now) {
   updateSmoke(dt);
   updateDroppedItems(dt);
   updateOpenDoors(dt);
+  updatePrimedTNTs(dt);
   updateGamepad(dt);
 
   if (settings.cheatInfiniteHP && player.hp < player.maxHp) player.hp = Math.min(player.maxHp, player.hp + dt * 2);
