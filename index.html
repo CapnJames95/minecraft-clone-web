@@ -2951,6 +2951,104 @@ function showVapeCloud() {
   clearTimeout(showVapeCloud._t);
   showVapeCloud._t = setTimeout(() => c.classList.remove('show'), 700);
 }
+// ============== Dropped Items ==============
+const droppedItems = [];
+function makeDroppedItemMesh(slotData) {
+  // Block: small textured cube
+  if (slotData.type === 'b') {
+    const mat = new THREE.MeshLambertMaterial({ map: atlasTexture });
+    const geo = new THREE.BoxGeometry(0.35, 0.35, 0.35);
+    // Set UVs from block's tile
+    const tiles = BLOCK_TILES[slotData.id];
+    if (tiles) {
+      const uvs = [];
+      const face = (tn) => { const t = TILES[tn]; const u0 = t.tx / ATLAS_COLS, v0 = 1 - (t.ty + 1) / ATLAS_ROWS, u1 = (t.tx + 1) / ATLAS_COLS, v1 = 1 - t.ty / ATLAS_ROWS; return [u1, v1, u0, v1, u1, v0, u0, v0]; };
+      // BoxGeometry face order: +x,-x,+y,-y,+z,-z
+      for (let f = 0; f < 6; f++) uvs.push(...face(tiles[f]));
+      geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    }
+    return new THREE.Mesh(geo, mat);
+  }
+  // Item: render glyph on a canvas sprite (always faces camera)
+  if (slotData.type === 'i') {
+    const c = document.createElement('canvas'); c.width = c.height = 32;
+    const ctx = c.getContext('2d'); ctx.imageSmoothingEnabled = false;
+    ctx.scale(2, 2); drawItemGlyph(ctx, slotData.key);
+    const tex = new THREE.CanvasTexture(c); tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter;
+    const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+    const spr = new THREE.Sprite(mat); spr.scale.set(0.45, 0.45, 1);
+    return spr;
+  }
+  if (slotData.type === 'sword') {
+    const c = document.createElement('canvas'); c.width = c.height = 32;
+    const ctx = c.getContext('2d'); ctx.imageSmoothingEnabled = false;
+    ctx.scale(2, 2); drawSlotIcon(c, slotData);
+    const tex = new THREE.CanvasTexture(c); tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter;
+    return new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
+  }
+  return null;
+}
+function spawnDroppedItem(slotData, count = 1, extra = null) {
+  const mesh = makeDroppedItemMesh(slotData);
+  if (!mesh) return;
+  const dir = new THREE.Vector3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
+  const pos = new THREE.Vector3(player.pos.x + dir.x * 1.2, player.pos.y - 0.6, player.pos.z + dir.z * 1.2);
+  mesh.position.copy(pos);
+  scene.add(mesh);
+  const item = { mesh, slotData, count, pos, vel: new THREE.Vector3(dir.x * 2.5, 2, dir.z * 2.5), age: 0, extra };
+  droppedItems.push(item);
+}
+function tryPickup(itemEntry) {
+  const sd = itemEntry.slotData;
+  if (sd.type === 'b') {
+    player.inventory['b' + sd.id] = (player.inventory['b' + sd.id] || 0) + itemEntry.count;
+    showToast(`Picked up ${BLOCK_BY_ID[sd.id].name} x${itemEntry.count}`);
+  } else if (sd.type === 'i') {
+    if (ITEMS_BY_KEY[sd.key] && ITEMS_BY_KEY[sd.key].vape) {
+      // Vape dropped: use the stored device puff count
+      const puffs = itemEntry.extra && typeof itemEntry.extra.puffs === 'number' ? itemEntry.extra.puffs : PUFFS_PER_DEVICE;
+      giveVape(sd.key, puffs);
+      showToast(`Picked up ${ITEMS_BY_KEY[sd.key].name} (${puffs} puffs)`);
+    } else {
+      player.inventory['i' + sd.key] = (player.inventory['i' + sd.key] || 0) + itemEntry.count;
+      showToast(`Picked up ${ITEMS_BY_KEY[sd.key].name} x${itemEntry.count}`);
+    }
+  }
+}
+function updateDroppedItems(dt) {
+  for (let i = droppedItems.length - 1; i >= 0; i--) {
+    const e = droppedItems[i];
+    e.age += dt;
+    // Gravity + ground collision (sample world block beneath)
+    e.vel.y -= 18 * dt;
+    if (e.vel.y < -20) e.vel.y = -20;
+    e.pos.addScaledVector(e.vel, dt);
+    // Friction on x/z
+    e.vel.x *= 0.92; e.vel.z *= 0.92;
+    // Settle on solid block
+    const bx = Math.floor(e.pos.x), by = Math.floor(e.pos.y - 0.05), bz = Math.floor(e.pos.z);
+    if (isSolid(world.getBlock(bx, by, bz))) {
+      e.pos.y = by + 1 + 0.05;
+      e.vel.y = 0;
+    }
+    // Visible bob/rotation
+    const bobY = Math.sin(e.age * 3) * 0.08;
+    e.mesh.position.set(e.pos.x, e.pos.y + bobY, e.pos.z);
+    if (e.mesh.rotation) e.mesh.rotation.y = (e.mesh.rotation.y || 0) + dt * 1.4;
+    // Pickup
+    const d = Math.hypot(e.pos.x - player.pos.x, e.pos.z - player.pos.z);
+    const dy = Math.abs(e.pos.y - (player.pos.y - 0.8));
+    if (e.age > 0.5 && d < 1.3 && dy < 1.8) {
+      tryPickup(e);
+      scene.remove(e.mesh);
+      droppedItems.splice(i, 1);
+      continue;
+    }
+    // Despawn after a while
+    if (e.age > 120) { scene.remove(e.mesh); droppedItems.splice(i, 1); }
+  }
+}
+
 let smokeParticles = [];
 function spawnSmoke() {
   const dir = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(player.pitch, player.yaw, 0, 'YXZ'));
@@ -3110,6 +3208,50 @@ document.getElementById('invModalClose').addEventListener('click', toggleInvento
 document.getElementById('craftModalClose').addEventListener('click', toggleCrafting);
 invModal.addEventListener('click', (e) => { if (e.target === invModal) toggleInventory(); });
 craftModal.addEventListener('click', (e) => { if (e.target === craftModal) toggleCrafting(); });
+// Allow dropping outside the panel to drop the item on the ground
+invModal.addEventListener('dragover', (e) => { if (e.target === invModal) e.preventDefault(); });
+invModal.addEventListener('drop', (e) => {
+  if (e.target !== invModal) return; // only background drops trigger this
+  e.preventDefault();
+  const data = e.dataTransfer.getData('text/plain');
+  if (!data) return;
+  try {
+    const sd = JSON.parse(data);
+    // Consume from inventory (decrement count by 1)
+    if (sd.type === 'b') {
+      const k = 'b' + sd.id;
+      if (settings.gamemode === 'survival') {
+        if (!player.inventory[k] || player.inventory[k] <= 0) { showToast('Nothing to drop'); return; }
+        player.inventory[k]--;
+        if (player.inventory[k] <= 0) delete player.inventory[k];
+      }
+      spawnDroppedItem(sd, 1);
+    } else if (sd.type === 'i') {
+      const item = ITEMS_BY_KEY[sd.key];
+      if (item && item.vape) {
+        const arr = getVapeArr(sd.key);
+        if (arr.length === 0) { showToast('Nothing to drop'); return; }
+        // Drop the device with the most puffs (so user keeps the partly-used ones)
+        let idx = 0; for (let i = 1; i < arr.length; i++) if (arr[i] > arr[idx]) idx = i;
+        const puffs = arr[idx];
+        arr.splice(idx, 1);
+        player.inventory['i' + sd.key] = arr.length;
+        if (player.inventory['i' + sd.key] <= 0) delete player.inventory['i' + sd.key];
+        spawnDroppedItem(sd, 1, { puffs });
+      } else {
+        const k = 'i' + sd.key;
+        if (!player.inventory[k] || player.inventory[k] <= 0) { showToast('Nothing to drop'); return; }
+        player.inventory[k]--;
+        if (player.inventory[k] <= 0) delete player.inventory[k];
+        spawnDroppedItem(sd, 1);
+      }
+    } else if (sd.type === 'sword') {
+      // Sword is unlimited in creative model; just drop a visual
+      spawnDroppedItem(sd, 1);
+    }
+    renderInventory(); updateHotbar();
+  } catch (err) {}
+});
 
 // ============== Furnace / Smelting ==============
 // Recipes: { in: ['key',count], out: ['key',count] }; fuels: cost 1 fuel-unit per smelt
@@ -3675,6 +3817,7 @@ function animate(now) {
   }
   for (let i = mobs.length - 1; i >= 0; i--) updateMob(mobs[i], dt);
   updateSmoke(dt);
+  updateDroppedItems(dt);
 
   if (settings.cheatInfiniteHP && player.hp < player.maxHp) player.hp = Math.min(player.maxHp, player.hp + dt * 2);
   if (settings.gamemode === 'creative') {
