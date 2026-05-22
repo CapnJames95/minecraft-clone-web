@@ -319,7 +319,7 @@
 import * as THREE from 'three';
 
 // VERSION — replaced on every commit by the pre-commit script below
-const VERSION = 'v0.23 (2fc95c9)';
+const VERSION = 'v0.24 (f172564)';
 
 // ============== Random / Noise ==============
 function mulberry32(seed) {
@@ -1581,20 +1581,51 @@ function updateMob(m, dt) {
   // Gravity
   m.vel.y -= 24 * dt;
   if (m.vel.y < -30) m.vel.y = -30;
-  // Jump if blocked horizontally
+
+  // Prevent walking off cliffs while wandering (peaceful mobs only)
+  if (m.onGround && !m.hostile) {
+    const tryX = m.pos.x + m.vel.x * dt * 0.5;
+    const tryZ = m.pos.z + m.vel.z * dt * 0.5;
+    const fx = Math.floor(tryX), fz = Math.floor(tryZ);
+    const fy = Math.floor(m.pos.y - 1);
+    if (!isSolid(world.getBlock(fx, fy, fz)) && !isSolid(world.getBlock(fx, fy - 1, fz))) {
+      m.vel.x = 0; m.vel.z = 0; m.wanderTimer = 0.5; // pause & re-roll soon
+    }
+  }
+
+  // Horizontal movement: only jump if there's room ABOVE the obstacle (i.e. one-block step)
   const tryX = m.pos.x + m.vel.x * dt;
   let blockedX = mobCollides(m, tryX, m.pos.y, m.pos.z);
-  if (blockedX && m.onGround) { m.vel.y = 7; blockedX = false; }
+  if (blockedX && m.onGround) {
+    // Check if we can step up one block (no collision at +1 y)
+    if (!mobCollides(m, tryX, m.pos.y + 1, m.pos.z)) {
+      m.vel.y = 7; // trigger jump; movement happens after y rises
+    }
+    m.vel.x *= 0.5; // soft bounce instead of teleporting through
+  }
   if (!blockedX) m.pos.x = tryX; else m.vel.x = 0;
 
   const tryZ = m.pos.z + m.vel.z * dt;
   let blockedZ = mobCollides(m, m.pos.x, m.pos.y, tryZ);
-  if (blockedZ && m.onGround) { m.vel.y = 7; blockedZ = false; }
+  if (blockedZ && m.onGround) {
+    if (!mobCollides(m, m.pos.x, m.pos.y + 1, tryZ)) {
+      m.vel.y = 7;
+    }
+    m.vel.z *= 0.5;
+  }
   if (!blockedZ) m.pos.z = tryZ; else m.vel.z = 0;
 
   const tryY = m.pos.y + m.vel.y * dt;
   if (!mobCollides(m, m.pos.x, tryY, m.pos.z)) { m.pos.y = tryY; m.onGround = false; }
   else { if (m.vel.y < 0) m.onGround = true; m.vel.y = 0; }
+
+  // Safety: if the mob ended up embedded (e.g. terrain regenerated under it), nudge it up
+  if (mobCollides(m, m.pos.x, m.pos.y, m.pos.z)) {
+    for (let i = 0; i < 4; i++) {
+      m.pos.y += 0.5;
+      if (!mobCollides(m, m.pos.x, m.pos.y, m.pos.z)) break;
+    }
+  }
 
   if (m.pos.y < -20 || m.hp <= 0) {
     // Drops
