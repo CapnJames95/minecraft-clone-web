@@ -38,7 +38,7 @@
   .bubble { width: 16px; height: 16px; }
   #toast { position: absolute; top: 80px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); padding: 6px 12px; font-size: 13px; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
   #toast.show { opacity: 1; }
-  #invModal, #craftModal { position: absolute; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; }
+  #invModal, #craftModal, #vapeModal, #furnaceModal, #dialogueModal { position: absolute; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; }
   #invModal .panel, #craftModal .panel { background: #222; border: 2px solid #555; padding: 16px; max-width: 600px; max-height: 80vh; overflow-y: auto; }
   #invModal h2, #craftModal h2 { margin: 0 0 8px; }
   .inv-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
@@ -310,7 +310,7 @@
 import * as THREE from 'three';
 
 // VERSION — replaced on every commit by the pre-commit script below
-const VERSION = 'v0.19 (7922da0)';
+const VERSION = 'v0.20 (1fc7ff0)';
 
 // ============== Random / Noise ==============
 function mulberry32(seed) {
@@ -3903,7 +3903,7 @@ function animate(now) {
 
   if (settings.cheatInfiniteHP && player.hp < player.maxHp) player.hp = Math.min(player.maxHp, player.hp + dt * 2);
   if (settings.gamemode === 'creative') {
-    player.hp = player.maxHp;
+    if (!player.drowning) player.hp = player.maxHp;
     player.hunger = player.maxHunger;
   }
 
@@ -3916,8 +3916,8 @@ function animate(now) {
       player.breath = (player.breath == null ? 1 : player.breath) - dt / 15;
       if (player.breath < 0) {
         player.breath = 0;
-        if (!settings.cheatGodMode && settings.gamemode === 'survival') { player.hp -= dt * 1; playerHurt(); }
-      }
+        if (!settings.cheatGodMode) { player.hp = Math.max(0, player.hp - dt * 2); playerHurt(); player.drowning = true; }
+      } else { player.drowning = false; }
     } else {
       player.breath = 1;
     }
