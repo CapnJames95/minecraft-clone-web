@@ -1947,8 +1947,10 @@ const overlay = document.getElementById('overlay');
 const menu = document.getElementById('menu');
 overlay.addEventListener('click', () => { overlay.classList.remove('compact'); renderer.domElement.requestPointerLock(); });
 document.addEventListener('pointerlockchange', () => {
-  if (document.pointerLockElement === renderer.domElement) overlay.classList.add('hidden');
-  else {
+  if (document.pointerLockElement === renderer.domElement) {
+    overlay.classList.add('hidden');
+    overlay.classList.remove('compact');
+  } else {
     const anyModalOpen = !menu.classList.contains('hidden')
       || !document.getElementById('invModal').classList.contains('hidden')
       || !document.getElementById('craftModal').classList.contains('hidden')
@@ -1959,6 +1961,16 @@ document.addEventListener('pointerlockchange', () => {
     if (!anyModalOpen) overlay.classList.remove('hidden');
   }
 });
+
+// Helper: close a modal and always make sure the user has a path back into the game.
+// Pointer-lock re-requests sometimes get denied silently by the browser, so we
+// always reveal the compact overlay; pointerlockchange will hide it if lock succeeds.
+function closeModalAndResume(modalEl) {
+  modalEl.classList.add('hidden');
+  overlay.classList.remove('hidden');
+  overlay.classList.add('compact');
+  try { renderer.domElement.requestPointerLock(); } catch (e) {}
+}
 document.addEventListener('mousemove', (e) => {
   if (document.pointerLockElement !== renderer.domElement) return;
   player.yaw -= e.movementX * settings.sensitivity;
@@ -1973,9 +1985,7 @@ document.addEventListener('keydown', (e) => {
     for (const id of modalIds) {
       const el = document.getElementById(id);
       if (!el.classList.contains('hidden')) {
-        el.classList.add('hidden');
-        // Use compact overlay (small "click to resume") so it's less jarring
-        overlay.classList.add('compact');
+        closeModalAndResume(el);
         e.preventDefault();
         return;
       }
@@ -2776,8 +2786,7 @@ function toggleInventory() {
     overlay.classList.add('hidden');
     renderInventory();
   } else {
-    invModal.classList.add('hidden');
-    renderer.domElement.requestPointerLock();
+    closeModalAndResume(invModal);
   }
 }
 function toggleCrafting() {
@@ -2788,8 +2797,7 @@ function toggleCrafting() {
     overlay.classList.add('hidden');
     renderCrafting();
   } else {
-    craftModal.classList.add('hidden');
-    renderer.domElement.requestPointerLock();
+    closeModalAndResume(craftModal);
   }
 }
 function makeSlotEl(item, count) {
@@ -3109,8 +3117,7 @@ function toggleFurnace() {
     overlay.classList.add('hidden');
     renderFurnace();
   } else {
-    furnaceModal.classList.add('hidden');
-    renderer.domElement.requestPointerLock();
+    closeModalAndResume(furnaceModal);
   }
 }
 function smeltOnce(recipe) {
@@ -3246,7 +3253,7 @@ function renderVapeShop() {
 }
 document.getElementById('vapeClose').addEventListener('click', toggleVapeShop);
 document.getElementById('vapeModalCloseX').addEventListener('click', toggleVapeShop);
-document.getElementById('dialogueModalCloseX').addEventListener('click', () => { dialogueModal.classList.add('hidden'); renderer.domElement.requestPointerLock(); });
+document.getElementById('dialogueModalCloseX').addEventListener('click', () => closeModalAndResume(dialogueModal));
 vapeModal.addEventListener('click', (e) => { if (e.target === vapeModal) toggleVapeShop(); });
 
 // ============== Dodgy Shop ==============
@@ -3378,8 +3385,7 @@ toggleVapeShop = function(shopType = 'vape') {
     overlay.classList.add('hidden');
     renderShop(shopType);
   } else {
-    vapeModal.classList.add('hidden');
-    renderer.domElement.requestPointerLock();
+    closeModalAndResume(vapeModal);
   }
 };
 
@@ -3452,14 +3458,14 @@ function openDialogue(mob) {
   });
   const close = document.createElement('button');
   close.textContent = 'Later'; close.style.cssText = 'background:#444;color:#fff;border:0;padding:8px 16px;cursor:pointer;font-family:inherit';
-  close.addEventListener('click', () => { dialogueModal.classList.add('hidden'); renderer.domElement.requestPointerLock(); });
+  close.addEventListener('click', () => closeModalAndResume(dialogueModal));
   choices.appendChild(open); choices.appendChild(fotw); choices.appendChild(loyaltyAsk); choices.appendChild(close);
   dialogueModal.classList.remove('hidden');
   document.exitPointerLock();
   overlay.classList.add('hidden');
 }
 dialogueModal.addEventListener('click', (e) => {
-  if (e.target === dialogueModal) { dialogueModal.classList.add('hidden'); renderer.domElement.requestPointerLock(); }
+  if (e.target === dialogueModal) closeModalAndResume(dialogueModal);
 });
 
 // ============== Crafting ==============
