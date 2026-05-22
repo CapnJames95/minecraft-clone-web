@@ -79,10 +79,17 @@
   <div id="craftList"></div>
 </div></div>
 <div id="vapeModal" class="hidden"><div class="panel" style="border-color:#ff00ff">
-  <h2 style="color:#ff80ff;text-shadow:0 0 8px #ff00ff">VAPE SHOP</h2>
-  <p style="font-size:12px;opacity:0.7;color:#88ffff">Trade your items for premium vapes. Right-click any vape counter to shop.</p>
+  <h2 id="vapeTitle" style="color:#ff80ff;text-shadow:0 0 8px #ff00ff">VAPE SHOP</h2>
+  <p id="vapeFlavor" style="font-size:13px;color:#ffe040"></p>
+  <p id="vapeLoyalty" style="font-size:12px;color:#88ffaa"></p>
+  <p style="font-size:12px;opacity:0.7;color:#88ffff" id="vapeSubtitle">Trade your items for premium vapes.</p>
   <div id="vapeList"></div>
   <button id="vapeClose" style="margin-top:8px">Close</button>
+</div></div>
+<div id="dialogueModal" class="hidden"><div class="panel" style="border-color:#88ff88;max-width:500px">
+  <h2 id="diaName" style="color:#ffe040">Vape Shopkeeper</h2>
+  <p id="diaText" style="font-size:14px;line-height:1.5;min-height:60px"></p>
+  <div id="diaChoices" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"></div>
 </div></div>
 <div id="overlay">
   <h1>Minecraft Clone</h1>
@@ -227,6 +234,49 @@ const BLOCKS = {
   VAPECNT: { id: 25, name: 'Vape Counter',  solid: true },
   NEONPNK: { id: 26, name: 'Neon Pink',     solid: true },
   NEONCYN: { id: 27, name: 'Neon Cyan',     solid: true },
+  COAL_ORE:    { id: 30, name: 'Coal Ore',     solid: true },
+  IRON_ORE:    { id: 31, name: 'Iron Ore',     solid: true },
+  GOLD_ORE:    { id: 32, name: 'Gold Ore',     solid: true },
+  DIAMOND_ORE: { id: 33, name: 'Diamond Ore',  solid: true },
+  EMERALD_ORE: { id: 34, name: 'Emerald Ore',  solid: true },
+  LAPIS_ORE:   { id: 35, name: 'Lapis Ore',    solid: true },
+  REDSTONE_ORE:{ id: 36, name: 'Redstone Ore', solid: true },
+  DIAMOND_BLK: { id: 37, name: 'Diamond Block',solid: true },
+  EMERALD_BLK: { id: 38, name: 'Emerald Block',solid: true },
+  LAPIS_BLK:   { id: 39, name: 'Lapis Block',  solid: true },
+  REDSTONE_BLK:{ id: 40, name: 'Redstone Block',solid: true },
+  BEDROCK:     { id: 41, name: 'Bedrock',      solid: true },
+  LAVA:        { id: 42, name: 'Lava',         solid: false, transparent: true },
+  MAGMA:       { id: 43, name: 'Magma Block',  solid: true },
+  MOSSY_COBBLE:{ id: 44, name: 'Mossy Cobble', solid: true },
+  NETHERRACK:  { id: 45, name: 'Netherrack',   solid: true },
+  SOUL_SAND:   { id: 46, name: 'Soul Sand',    solid: true },
+  END_STONE:   { id: 47, name: 'End Stone',    solid: true },
+  PUMPKIN:     { id: 48, name: 'Pumpkin',      solid: true },
+  JACK_LANTERN:{ id: 49, name: 'Jack-o-Lantern',solid: true },
+  MELON:       { id: 50, name: 'Melon',        solid: true },
+  CLAY:        { id: 51, name: 'Clay',         solid: true },
+  TERRACOTTA:  { id: 52, name: 'Terracotta',   solid: true },
+  SLIME:       { id: 53, name: 'Slime Block',  solid: true },
+  HONEY:       { id: 54, name: 'Honey Block',  solid: true, transparent: true },
+  COBWEB:      { id: 55, name: 'Cobweb',       solid: false, plant: true },
+  RED_MUSH:    { id: 56, name: 'Red Mushroom', solid: false, plant: true },
+  BROWN_MUSH:  { id: 57, name: 'Brown Mushroom',solid: false, plant: true },
+  SPRUCE_LOG:  { id: 58, name: 'Spruce Log',   solid: true },
+  BIRCH_LOG:   { id: 59, name: 'Birch Log',    solid: true },
+  SPRUCE_PLANK:{ id: 60, name: 'Spruce Plank', solid: true },
+  BIRCH_PLANK: { id: 61, name: 'Birch Plank',  solid: true },
+  TORCH:       { id: 62, name: 'Torch',        solid: false, plant: true },
+  REDSTONE_TORCH:{ id: 63, name: 'Redstone Torch', solid: false, plant: true },
+  CHEST:       { id: 64, name: 'Chest',        solid: true },
+  WHITE_WOOL:  { id: 65, name: 'White Wool',   solid: true },
+  RED_WOOL:    { id: 66, name: 'Red Wool',     solid: true },
+  BLUE_WOOL:   { id: 67, name: 'Blue Wool',    solid: true },
+  YELLOW_WOOL: { id: 68, name: 'Yellow Wool',  solid: true },
+  BLACK_WOOL:  { id: 69, name: 'Black Wool',   solid: true },
+  GRAVEL:      { id: 70, name: 'Gravel',       solid: true },
+  PODZOL:      { id: 71, name: 'Podzol',       solid: true },
+  MYCELIUM:    { id: 72, name: 'Mycelium',     solid: true },
 };
 const BLOCK_BY_ID = {};
 for (const k in BLOCKS) BLOCK_BY_ID[BLOCKS[k].id] = BLOCKS[k];
@@ -235,6 +285,13 @@ const HOTBAR = [
   BLOCKS.COBBLE, BLOCKS.BRICK, BLOCKS.GLASS, BLOCKS.BOOKSHF, BLOCKS.FURNACE, BLOCKS.CRAFTBL, BLOCKS.BED,
   BLOCKS.IRON, BLOCKS.GOLD, BLOCKS.TNT, BLOCKS.OBSID, BLOCKS.SNOW, BLOCKS.ICE, BLOCKS.CACTUS,
   BLOCKS.VAPECNT, BLOCKS.NEONPNK, BLOCKS.NEONCYN,
+  BLOCKS.COAL_ORE, BLOCKS.IRON_ORE, BLOCKS.GOLD_ORE, BLOCKS.DIAMOND_ORE, BLOCKS.EMERALD_ORE, BLOCKS.LAPIS_ORE, BLOCKS.REDSTONE_ORE,
+  BLOCKS.DIAMOND_BLK, BLOCKS.EMERALD_BLK, BLOCKS.LAPIS_BLK, BLOCKS.REDSTONE_BLK,
+  BLOCKS.BEDROCK, BLOCKS.MAGMA, BLOCKS.MOSSY_COBBLE, BLOCKS.NETHERRACK, BLOCKS.SOUL_SAND, BLOCKS.END_STONE,
+  BLOCKS.PUMPKIN, BLOCKS.JACK_LANTERN, BLOCKS.MELON, BLOCKS.CLAY, BLOCKS.TERRACOTTA,
+  BLOCKS.SLIME, BLOCKS.HONEY, BLOCKS.SPRUCE_LOG, BLOCKS.BIRCH_LOG, BLOCKS.SPRUCE_PLANK, BLOCKS.BIRCH_PLANK, BLOCKS.CHEST,
+  BLOCKS.WHITE_WOOL, BLOCKS.RED_WOOL, BLOCKS.BLUE_WOOL, BLOCKS.YELLOW_WOOL, BLOCKS.BLACK_WOOL,
+  BLOCKS.GRAVEL, BLOCKS.PODZOL, BLOCKS.MYCELIUM,
 ];
 const isSolid = (id) => id !== 0 && BLOCK_BY_ID[id] && BLOCK_BY_ID[id].solid;
 const isOpaque = (id) => id !== 0 && BLOCK_BY_ID[id] && !BLOCK_BY_ID[id].transparent && !BLOCK_BY_ID[id].plant;
@@ -286,8 +343,8 @@ function drawIce(ctx) { noiseFill(ctx, [180, 220, 245], 20, 0.8); for (let i = 0
 function drawCactusSide(ctx) { noiseFill(ctx, [60, 130, 50], 15); ctx.fillStyle = '#3a7030'; ctx.fillRect(1, 0, 1, TILE); ctx.fillRect(TILE-2, 0, 1, TILE); for (let y = 0; y < TILE; y += 3) { ctx.fillStyle = '#fff'; ctx.fillRect(1, y, 1, 1); ctx.fillRect(TILE-2, y+1, 1, 1); } }
 function drawCactusTop(ctx) { noiseFill(ctx, [70, 140, 60], 15); ctx.fillStyle = '#3a7030'; ctx.strokeStyle = '#3a7030'; ctx.strokeRect(2, 2, TILE-4, TILE-4); }
 
-// Build texture atlas: 8 cols x 8 rows = 64 tiles
-const ATLAS_COLS = 8, ATLAS_ROWS = 8;
+// Build texture atlas: 16 cols x 16 rows = 256 tiles
+const ATLAS_COLS = 16, ATLAS_ROWS = 16;
 const atlasCanvas = document.createElement('canvas');
 atlasCanvas.width = TILE * ATLAS_COLS;
 atlasCanvas.height = TILE * ATLAS_ROWS;
@@ -336,6 +393,67 @@ regTile('vape_counter_top', (ctx) => { ctx.fillStyle = '#1a0a2a'; ctx.fillRect(0
 regTile('vape_counter_side', (ctx) => { ctx.fillStyle = '#2a1040'; ctx.fillRect(0,0,TILE,TILE); ctx.fillStyle = '#ff00ff'; ctx.fillRect(0, 0, TILE, 1); ctx.fillRect(0, TILE-1, TILE, 1); ctx.fillStyle = '#00ffff'; ctx.fillRect(0, 3, TILE, 1); ctx.fillRect(0, TILE-4, TILE, 1); ctx.fillStyle = '#fff'; ctx.font = 'bold 6px sans-serif'; ctx.fillText('VAPE', 1, 11); });
 regTile('neon_pink', (ctx) => { noiseFill(ctx, [255, 60, 200], 30); ctx.strokeStyle = '#ff00ff'; ctx.strokeRect(0, 0, TILE-1, TILE-1); ctx.strokeRect(2, 2, TILE-5, TILE-5); });
 regTile('neon_cyan', (ctx) => { noiseFill(ctx, [60, 240, 240], 30); ctx.strokeStyle = '#00ffff'; ctx.strokeRect(0, 0, TILE-1, TILE-1); ctx.strokeRect(2, 2, TILE-5, TILE-5); });
+// Ores: stone background with colored speckles
+function drawOre(color) {
+  return (ctx) => {
+    drawStone(ctx);
+    for (let i = 0; i < 6; i++) {
+      ctx.fillStyle = color;
+      const x = 2 + Math.random() * 12 | 0, y = 2 + Math.random() * 12 | 0;
+      ctx.fillRect(x, y, 2, 2);
+    }
+  };
+}
+regTile('coal_ore', drawOre('#222'));
+regTile('iron_ore', drawOre('#c9a787'));
+regTile('gold_ore', drawOre('#f0d040'));
+regTile('diamond_ore', drawOre('#4af5e8'));
+regTile('emerald_ore', drawOre('#28d850'));
+regTile('lapis_ore', drawOre('#2050d0'));
+regTile('redstone_ore', drawOre('#e02020'));
+regTile('diamond_block', (ctx) => { noiseFill(ctx, [80, 220, 220], 20); ctx.fillStyle = '#fff'; for (let i = 0; i < 8; i++) ctx.fillRect(Math.random()*TILE|0, Math.random()*TILE|0, 1, 1); });
+regTile('emerald_block', (ctx) => { noiseFill(ctx, [40, 200, 80], 20); ctx.strokeStyle = '#88ffaa'; ctx.strokeRect(2, 2, TILE-5, TILE-5); });
+regTile('lapis_block', (ctx) => { noiseFill(ctx, [30, 70, 200], 25); for (let i = 0; i < 8; i++) { ctx.fillStyle = '#f0d040'; ctx.fillRect(Math.random()*TILE|0, Math.random()*TILE|0, 1, 1); } });
+regTile('redstone_block', (ctx) => { noiseFill(ctx, [180, 30, 30], 30); });
+regTile('bedrock', (ctx) => { noiseFill(ctx, [50, 50, 50], 30); for (let i = 0; i < 12; i++) { ctx.fillStyle = '#222'; ctx.fillRect(Math.random()*TILE|0, Math.random()*TILE|0, 2, 1); } });
+regTile('lava', (ctx) => { noiseFill(ctx, [240, 100, 20], 40, 0.95); for (let i = 0; i < 8; i++) { ctx.fillStyle = '#ffe040'; ctx.fillRect(Math.random()*TILE|0, Math.random()*TILE|0, 2, 1); } });
+regTile('magma', (ctx) => { noiseFill(ctx, [120, 30, 20], 30); for (let i = 0; i < 6; i++) { ctx.fillStyle = '#ffa040'; ctx.fillRect(Math.random()*TILE|0, Math.random()*TILE|0, 2, 2); } });
+regTile('mossy_cobble', (ctx) => { drawCobble(ctx); for (let i = 0; i < 15; i++) { ctx.fillStyle = `rgb(${30+Math.random()*40|0},${100+Math.random()*40|0},${30+Math.random()*30|0})`; ctx.fillRect(Math.random()*TILE|0, Math.random()*TILE|0, 1, 1); } });
+regTile('netherrack', (ctx) => { noiseFill(ctx, [120, 30, 30], 30); });
+regTile('soul_sand', (ctx) => { noiseFill(ctx, [80, 60, 50], 20); for (let i = 0; i < 3; i++) { ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(Math.random()*TILE, Math.random()*TILE, 2, 0, Math.PI*2); ctx.fill(); } });
+regTile('end_stone', (ctx) => { noiseFill(ctx, [220, 220, 170], 20); });
+regTile('pumpkin_top', (ctx) => { noiseFill(ctx, [180, 100, 30], 20); ctx.fillStyle = '#5a3010'; ctx.fillRect(6, 6, 4, 4); });
+regTile('pumpkin_side', (ctx) => { noiseFill(ctx, [220, 130, 30], 15); for (let x = 1; x < TILE; x += 3) { ctx.fillStyle = '#a06010'; ctx.fillRect(x, 1, 1, TILE-2); } });
+regTile('pumpkin_face', (ctx) => { noiseFill(ctx, [220, 130, 30], 15); ctx.fillStyle = '#3a1a00'; ctx.fillRect(3, 4, 3, 2); ctx.fillRect(10, 4, 3, 2); ctx.fillRect(5, 9, 6, 2); ctx.fillRect(4, 11, 2, 1); ctx.fillRect(10, 11, 2, 1); });
+regTile('jack_face', (ctx) => { noiseFill(ctx, [220, 130, 30], 15); ctx.fillStyle = '#ffe040'; ctx.fillRect(3, 4, 3, 2); ctx.fillRect(10, 4, 3, 2); ctx.fillRect(5, 9, 6, 2); ctx.fillRect(4, 11, 2, 1); ctx.fillRect(10, 11, 2, 1); });
+regTile('melon_top', (ctx) => { noiseFill(ctx, [120, 180, 60], 15); });
+regTile('melon_side', (ctx) => { noiseFill(ctx, [60, 130, 50], 15); for (let i = 0; i < 10; i++) { ctx.fillStyle = '#88ee88'; ctx.fillRect(Math.random()*TILE|0, Math.random()*TILE|0, 1, 2); } });
+regTile('clay', (ctx) => { noiseFill(ctx, [160, 170, 190], 12); });
+regTile('terracotta', (ctx) => { noiseFill(ctx, [180, 110, 70], 20); });
+regTile('slime', (ctx) => { noiseFill(ctx, [120, 200, 120], 20, 0.85); ctx.strokeStyle = '#5aaa5a'; ctx.strokeRect(2, 2, TILE-5, TILE-5); });
+regTile('honey', (ctx) => { noiseFill(ctx, [240, 180, 40], 20, 0.7); });
+regTile('cobweb', (ctx) => { ctx.clearRect(0,0,TILE,TILE); ctx.strokeStyle = '#fff'; for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.moveTo(8, 8); ctx.lineTo(Math.random()*TILE, Math.random()*TILE); ctx.stroke(); } ctx.strokeRect(2, 2, TILE-5, TILE-5); });
+regTile('red_mushroom', (ctx) => { ctx.clearRect(0,0,TILE,TILE); ctx.fillStyle = '#eee'; ctx.fillRect(7, 9, 2, 5); ctx.fillStyle = '#d02020'; ctx.fillRect(4, 4, 8, 4); ctx.fillStyle = '#fff'; ctx.fillRect(5, 5, 1, 1); ctx.fillRect(9, 6, 1, 1); });
+regTile('brown_mushroom', (ctx) => { ctx.clearRect(0,0,TILE,TILE); ctx.fillStyle = '#eee'; ctx.fillRect(7, 9, 2, 5); ctx.fillStyle = '#8a5a30'; ctx.fillRect(4, 4, 8, 4); });
+regTile('spruce_log_top', (ctx) => { noiseFill(ctx, [90, 60, 30], 15); ctx.strokeStyle = '#3a2a1a'; for (let r = 2; r < 8; r += 2) { ctx.beginPath(); ctx.arc(8, 8, r, 0, Math.PI*2); ctx.stroke(); } });
+regTile('spruce_log_side', (ctx) => { noiseFill(ctx, [50, 30, 15], 12); for (let x = 0; x < TILE; x += 4) { ctx.fillStyle = '#2a1a0a'; ctx.fillRect(x, 0, 1, TILE); } });
+regTile('birch_log_top', (ctx) => { noiseFill(ctx, [220, 200, 160], 10); ctx.strokeStyle = '#9a8a70'; for (let r = 2; r < 8; r += 2) { ctx.beginPath(); ctx.arc(8, 8, r, 0, Math.PI*2); ctx.stroke(); } });
+regTile('birch_log_side', (ctx) => { ctx.fillStyle = '#f0eadd'; ctx.fillRect(0,0,TILE,TILE); for (let i = 0; i < 6; i++) { ctx.fillStyle = '#3a2a1a'; ctx.fillRect(Math.random()*TILE|0, Math.random()*4|0, 3, 1); } });
+regTile('spruce_plank', (ctx) => { noiseFill(ctx, [110, 75, 40], 12); for (let y = 0; y < TILE; y += 4) { ctx.fillStyle = '#4a3018'; ctx.fillRect(0, y, TILE, 1); } });
+regTile('birch_plank', (ctx) => { noiseFill(ctx, [220, 205, 170], 10); for (let y = 0; y < TILE; y += 4) { ctx.fillStyle = '#a08858'; ctx.fillRect(0, y, TILE, 1); } });
+regTile('torch', (ctx) => { ctx.clearRect(0,0,TILE,TILE); ctx.fillStyle = '#8B5A2B'; ctx.fillRect(7, 8, 2, 7); ctx.fillStyle = '#ffe040'; ctx.fillRect(6, 6, 4, 2); ctx.fillStyle = '#ff8020'; ctx.fillRect(7, 5, 2, 1); });
+regTile('redstone_torch', (ctx) => { ctx.clearRect(0,0,TILE,TILE); ctx.fillStyle = '#8B5A2B'; ctx.fillRect(7, 8, 2, 7); ctx.fillStyle = '#ff2020'; ctx.fillRect(6, 4, 4, 4); });
+regTile('chest_top', (ctx) => { noiseFill(ctx, [165, 110, 50], 15); ctx.fillStyle = '#5a3010'; ctx.fillRect(0, 0, TILE, 2); ctx.fillRect(0, TILE-2, TILE, 2); });
+regTile('chest_side', (ctx) => { noiseFill(ctx, [165, 110, 50], 15); ctx.fillStyle = '#5a3010'; ctx.fillRect(0, 0, TILE, 2); ctx.fillRect(0, TILE-2, TILE, 2); ctx.fillStyle = '#3a2010'; ctx.fillRect(0, 6, 1, 4); ctx.fillRect(TILE-1, 6, 1, 4); });
+regTile('chest_front', (ctx) => { noiseFill(ctx, [165, 110, 50], 15); ctx.fillStyle = '#5a3010'; ctx.fillRect(0, 0, TILE, 2); ctx.fillRect(0, TILE-2, TILE, 2); ctx.fillStyle = '#f0d040'; ctx.fillRect(7, 7, 2, 3); ctx.fillRect(6, 6, 4, 1); });
+regTile('wool_white', (ctx) => { noiseFill(ctx, [240, 240, 240], 12); });
+regTile('wool_red', (ctx) => { noiseFill(ctx, [210, 40, 40], 18); });
+regTile('wool_blue', (ctx) => { noiseFill(ctx, [40, 70, 200], 18); });
+regTile('wool_yellow', (ctx) => { noiseFill(ctx, [240, 220, 60], 18); });
+regTile('wool_black', (ctx) => { noiseFill(ctx, [30, 30, 30], 12); });
+regTile('gravel', (ctx) => { noiseFill(ctx, [130, 125, 120], 30); for (let i = 0; i < 10; i++) { ctx.fillStyle = '#777'; ctx.fillRect(Math.random()*TILE|0, Math.random()*TILE|0, 2, 1); } });
+regTile('podzol_top', (ctx) => { noiseFill(ctx, [90, 60, 40], 20); for (let i = 0; i < 10; i++) { ctx.fillStyle = '#3a2a1a'; ctx.fillRect(Math.random()*TILE|0, Math.random()*TILE|0, 1, 1); } });
+regTile('mycelium_top', (ctx) => { noiseFill(ctx, [120, 90, 130], 18); for (let i = 0; i < 12; i++) { ctx.fillStyle = '#ffaaff'; ctx.fillRect(Math.random()*TILE|0, Math.random()*TILE|0, 1, 1); } });
 
 // face order: +x, -x, +y(top), -y(bottom), +z(front), -z(back)
 const BLOCK_TILES = {
@@ -366,6 +484,49 @@ const BLOCK_TILES = {
   [BLOCKS.VAPECNT.id]: ['vape_counter_side','vape_counter_side','vape_counter_top','vape_counter_side','vape_counter_side','vape_counter_side'],
   [BLOCKS.NEONPNK.id]: ['neon_pink','neon_pink','neon_pink','neon_pink','neon_pink','neon_pink'],
   [BLOCKS.NEONCYN.id]: ['neon_cyan','neon_cyan','neon_cyan','neon_cyan','neon_cyan','neon_cyan'],
+  [BLOCKS.COAL_ORE.id]: Array(6).fill('coal_ore'),
+  [BLOCKS.IRON_ORE.id]: Array(6).fill('iron_ore'),
+  [BLOCKS.GOLD_ORE.id]: Array(6).fill('gold_ore'),
+  [BLOCKS.DIAMOND_ORE.id]: Array(6).fill('diamond_ore'),
+  [BLOCKS.EMERALD_ORE.id]: Array(6).fill('emerald_ore'),
+  [BLOCKS.LAPIS_ORE.id]: Array(6).fill('lapis_ore'),
+  [BLOCKS.REDSTONE_ORE.id]: Array(6).fill('redstone_ore'),
+  [BLOCKS.DIAMOND_BLK.id]: Array(6).fill('diamond_block'),
+  [BLOCKS.EMERALD_BLK.id]: Array(6).fill('emerald_block'),
+  [BLOCKS.LAPIS_BLK.id]: Array(6).fill('lapis_block'),
+  [BLOCKS.REDSTONE_BLK.id]: Array(6).fill('redstone_block'),
+  [BLOCKS.BEDROCK.id]: Array(6).fill('bedrock'),
+  [BLOCKS.LAVA.id]: Array(6).fill('lava'),
+  [BLOCKS.MAGMA.id]: Array(6).fill('magma'),
+  [BLOCKS.MOSSY_COBBLE.id]: Array(6).fill('mossy_cobble'),
+  [BLOCKS.NETHERRACK.id]: Array(6).fill('netherrack'),
+  [BLOCKS.SOUL_SAND.id]: Array(6).fill('soul_sand'),
+  [BLOCKS.END_STONE.id]: Array(6).fill('end_stone'),
+  [BLOCKS.PUMPKIN.id]: ['pumpkin_side','pumpkin_side','pumpkin_top','pumpkin_top','pumpkin_face','pumpkin_side'],
+  [BLOCKS.JACK_LANTERN.id]: ['pumpkin_side','pumpkin_side','pumpkin_top','pumpkin_top','jack_face','pumpkin_side'],
+  [BLOCKS.MELON.id]: ['melon_side','melon_side','melon_top','melon_top','melon_side','melon_side'],
+  [BLOCKS.CLAY.id]: Array(6).fill('clay'),
+  [BLOCKS.TERRACOTTA.id]: Array(6).fill('terracotta'),
+  [BLOCKS.SLIME.id]: Array(6).fill('slime'),
+  [BLOCKS.HONEY.id]: Array(6).fill('honey'),
+  [BLOCKS.COBWEB.id]: Array(6).fill('cobweb'),
+  [BLOCKS.RED_MUSH.id]: Array(6).fill('red_mushroom'),
+  [BLOCKS.BROWN_MUSH.id]: Array(6).fill('brown_mushroom'),
+  [BLOCKS.SPRUCE_LOG.id]: ['spruce_log_side','spruce_log_side','spruce_log_top','spruce_log_top','spruce_log_side','spruce_log_side'],
+  [BLOCKS.BIRCH_LOG.id]: ['birch_log_side','birch_log_side','birch_log_top','birch_log_top','birch_log_side','birch_log_side'],
+  [BLOCKS.SPRUCE_PLANK.id]: Array(6).fill('spruce_plank'),
+  [BLOCKS.BIRCH_PLANK.id]: Array(6).fill('birch_plank'),
+  [BLOCKS.TORCH.id]: Array(6).fill('torch'),
+  [BLOCKS.REDSTONE_TORCH.id]: Array(6).fill('redstone_torch'),
+  [BLOCKS.CHEST.id]: ['chest_side','chest_side','chest_top','chest_top','chest_front','chest_side'],
+  [BLOCKS.WHITE_WOOL.id]: Array(6).fill('wool_white'),
+  [BLOCKS.RED_WOOL.id]: Array(6).fill('wool_red'),
+  [BLOCKS.BLUE_WOOL.id]: Array(6).fill('wool_blue'),
+  [BLOCKS.YELLOW_WOOL.id]: Array(6).fill('wool_yellow'),
+  [BLOCKS.BLACK_WOOL.id]: Array(6).fill('wool_black'),
+  [BLOCKS.GRAVEL.id]: Array(6).fill('gravel'),
+  [BLOCKS.PODZOL.id]: ['dirt','dirt','podzol_top','dirt','dirt','dirt'],
+  [BLOCKS.MYCELIUM.id]: ['dirt','dirt','mycelium_top','dirt','dirt','dirt'],
 };
 
 const atlasTexture = new THREE.CanvasTexture(atlasCanvas);
@@ -390,6 +551,8 @@ let WORLD_SEED = 4242;
 let noise, noise2, oceanNoise, riverNoise, villageNoise, tempNoise, humNoise;
 const villageRegistry = [];
 const vapeShopRegistry = [];
+const dodgyShopRegistry = [];
+const pendingShopkeepers = []; // chunks generate shop, but mob is spawned in update tick
 
 function initNoise(seed) {
   WORLD_SEED = seed;
@@ -479,6 +642,23 @@ function vapeShopCenterAt(cx, cz) {
   return { lx, lz };
 }
 
+function dodgyShopCenterAt(cx, cz) {
+  // Yet another offset grid
+  const rx = Math.floor((cx - 1) / 6), rz = Math.floor((cz + 3) / 6);
+  const v = villageNoise.noise2D(rx * 3.1 + 200, rz * 3.1 + 200);
+  if (v < 0.5) return null;
+  const h = ((rx * 16769023) ^ (rz * 47297743) ^ (WORLD_SEED + 311)) >>> 0;
+  const ccx = (rx * 6 + 1) + (h % 6);
+  const ccz = (rz * 6 - 3) + ((h >>> 3) % 6);
+  if (ccx !== cx || ccz !== cz) return null;
+  const wx = ccx * CHUNK_W + 8, wz = ccz * CHUNK_W + 8;
+  const b = biomeAt(wx, wz);
+  if (b === BIOME.OCEAN) return null;
+  const lx = 4 + ((h >>> 6) % 8);
+  const lz = 4 + ((h >>> 10) % 8);
+  return { lx, lz };
+}
+
 class Chunk {
   constructor(cx, cz) {
     this.cx = cx; this.cz = cz;
@@ -510,8 +690,27 @@ class Chunk {
         const top = surfaceBlock(b, h);
         for (let y = 0; y <= h; y++) {
           let id;
-          if (y === 0) id = BLOCKS.STONE.id;
-          else if (y < h - 4) id = BLOCKS.STONE.id;
+          if (y === 0) id = BLOCKS.BEDROCK.id;
+          else if (y < 3 && Math.random() < 0.6) id = BLOCKS.BEDROCK.id;
+          else if (y < h - 4) {
+            id = BLOCKS.STONE.id;
+            // Ore replacement: layered by depth, ore-noise driven
+            const oreN = noise2.noise2D((wx + y * 13) * 0.15, (wz - y * 17) * 0.15);
+            if (oreN > 0.7) {
+              if (y < 14 && oreN > 0.85) id = BLOCKS.DIAMOND_ORE.id;
+              else if (y < 18 && oreN > 0.82) id = BLOCKS.LAPIS_ORE.id;
+              else if (y < 22 && oreN > 0.8) id = BLOCKS.REDSTONE_ORE.id;
+              else if (y < 28) id = BLOCKS.GOLD_ORE.id;
+              else if (y < 40) id = BLOCKS.IRON_ORE.id;
+              else id = BLOCKS.COAL_ORE.id;
+            } else if (oreN > 0.55 && y < 50) {
+              id = BLOCKS.COAL_ORE.id;
+            } else if (oreN > 0.6 && y < 35) {
+              id = BLOCKS.IRON_ORE.id;
+            }
+            // Emerald rare in mountain biome
+            if (b === BIOME.MOUNTAIN && y > 30 && y < 50 && oreN > 0.85 && Math.random() < 0.3) id = BLOCKS.EMERALD_ORE.id;
+          }
           else if (y < h) id = (b === BIOME.DESERT) ? BLOCKS.SAND.id : BLOCKS.DIRT.id;
           else id = top;
           this.blocks[this.idx(x, y, z)] = id;
@@ -545,8 +744,53 @@ class Chunk {
     const vs = vapeShopCenterAt(this.cx, this.cz);
     if (vs) {
       const shop = this.buildVapeShop(vs.lx, vs.lz, heights);
-      if (shop) vapeShopRegistry.push({ x: ox + shop.counterX, y: shop.counterY, z: oz + shop.counterZ });
+      if (shop) {
+        vapeShopRegistry.push({ x: ox + shop.counterX, y: shop.counterY, z: oz + shop.counterZ });
+        pendingShopkeepers.push({ x: ox + shop.counterX + 0.5, y: shop.counterY + 1, z: oz + shop.counterZ + 0.5, type: 'vape' });
+      }
     }
+    const ds = dodgyShopCenterAt(this.cx, this.cz);
+    if (ds) {
+      const shop = this.buildDodgyShop(ds.lx, ds.lz, heights);
+      if (shop) {
+        dodgyShopRegistry.push({ x: ox + shop.counterX, y: shop.counterY, z: oz + shop.counterZ });
+        pendingShopkeepers.push({ x: ox + shop.counterX + 0.5, y: shop.counterY + 1, z: oz + shop.counterZ + 0.5, type: 'dodgy' });
+      }
+    }
+  }
+  buildDodgyShop(lx, lz, heights) {
+    const W = 5, D = 5, H = 4;
+    let sum = 0, n = 0;
+    for (let dx = 0; dx < W; dx++) for (let dz = 0; dz < D; dz++) {
+      const xx = lx + dx, zz = lz + dz;
+      if (xx < 0 || xx >= CHUNK_W || zz < 0 || zz >= CHUNK_W) return null;
+      sum += heights[xx * CHUNK_W + zz]; n++;
+    }
+    const baseY = Math.round(sum / n);
+    if (baseY < SEA_LEVEL) return null;
+    for (let dx = 0; dx < W; dx++) for (let dz = 0; dz < D; dz++) {
+      for (let dy = 0; dy < H + 1; dy++) {
+        const y = baseY + dy;
+        if (y < 0 || y >= CHUNK_H) continue;
+        const wall = (dx === 0 || dx === W - 1 || dz === 0 || dz === D - 1);
+        let id = 0;
+        if (dy === 0) id = BLOCKS.MOSSY_COBBLE.id;
+        else if (dy === H) id = BLOCKS.MOSSY_COBBLE.id;
+        else if (wall) {
+          if (dz === D - 1 && dx === Math.floor(W / 2) && (dy === 1 || dy === 2)) id = 0; // door
+          else id = (dy === 2 && dx === 1 && dz === 0) ? BLOCKS.GLASS.id : BLOCKS.MOSSY_COBBLE.id;
+        }
+        this.blocks[this.idx(lx + dx, y, lz + dz)] = id;
+      }
+    }
+    // Counter (single block) and grimy decor
+    const cx = lx + Math.floor(W / 2), cz = lz + 1;
+    this.blocks[this.idx(cx, baseY + 1, cz)] = BLOCKS.VAPECNT.id;
+    this.blocks[this.idx(cx - 1, baseY + 1, cz)] = BLOCKS.CHEST.id;
+    this.blocks[this.idx(cx + 1, baseY + 1, cz)] = BLOCKS.CHEST.id;
+    // Cobweb in corner — feel
+    this.blocks[this.idx(lx + 1, baseY + 3, lz + 1)] = BLOCKS.COBWEB.id;
+    return { counterX: cx, counterY: baseY + 1, counterZ: cz };
   }
   buildVapeShop(lx, lz, heights) {
     const W = 7, D = 6, H = 4;
@@ -880,6 +1124,39 @@ function mobMesh(type) {
     const l1 = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.8, 0.25), legMat);
     l1.position.set(0.15, 0.4, 0); g.add(l1);
     const l2 = l1.clone(); l2.position.x = -0.15; g.add(l2);
+  } else if (type === 'vape_shopkeeper' || type === 'dodgy_shopkeeper') {
+    const dodgy = type === 'dodgy_shopkeeper';
+    // Shirt color: vape = neon pink, dodgy = grey hoodie
+    const shirtCol = dodgy ? 0x444444 : 0xff40ff;
+    const pantsCol = dodgy ? 0x222222 : 0x2050d0;
+    const skinCol = dodgy ? 0xc8a080 : 0xe0b890;
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.9, 0.4), new THREE.MeshLambertMaterial({ color: shirtCol }));
+    body.position.y = 0.95; g.add(body);
+    const legs = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.5, 0.4), new THREE.MeshLambertMaterial({ color: pantsCol }));
+    legs.position.y = 0.25; g.add(legs);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), new THREE.MeshLambertMaterial({ color: skinCol }));
+    head.position.y = 1.65; g.add(head);
+    // Eyes
+    const eyeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+    const e1 = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.04), eyeMat);
+    e1.position.set(0.1, 1.7, 0.26); g.add(e1);
+    const e2 = e1.clone(); e2.position.x = -0.1; g.add(e2);
+    // Mouth
+    const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.04, 0.04), new THREE.MeshBasicMaterial({ color: 0x401010 }));
+    mouth.position.set(0, 1.55, 0.26); g.add(mouth);
+    // Hat / hood
+    if (dodgy) {
+      const hood = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.25, 0.55), new THREE.MeshLambertMaterial({ color: 0x222222 }));
+      hood.position.y = 1.95; g.add(hood);
+    } else {
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.15, 0.55), new THREE.MeshLambertMaterial({ color: 0x00ffff }));
+      cap.position.y = 1.95; g.add(cap);
+    }
+    // Arms
+    const armMat = new THREE.MeshLambertMaterial({ color: shirtCol });
+    const a1 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.85, 0.2), armMat);
+    a1.position.set(0.4, 0.95, 0); g.add(a1);
+    const a2 = a1.clone(); a2.position.x = -0.4; g.add(a2);
   } else if (type === 'skeleton') {
     const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.9, 0.3), new THREE.MeshLambertMaterial({ color: 0xdddddd }));
     body.position.y = 0.9; g.add(body);
@@ -894,13 +1171,14 @@ function mobMesh(type) {
   return g;
 }
 function spawnMob(type, x, y, z) {
+  const shopkeep = type === 'vape_shopkeeper' || type === 'dodgy_shopkeeper';
   const m = {
     type, pos: new THREE.Vector3(x, y, z), vel: new THREE.Vector3(),
-    yaw: Math.random() * Math.PI * 2, hp: type === 'zombie' || type === 'skeleton' ? 20 : 10,
+    yaw: Math.random() * Math.PI * 2, hp: type === 'zombie' || type === 'skeleton' ? 20 : (shopkeep ? 50 : 10),
     onGround: false, mesh: mobMesh(type),
     wanderTimer: 0, attackCooldown: 0, hostile: type === 'zombie' || type === 'skeleton',
-    radius: 0.35, height: type === 'zombie' || type === 'skeleton' ? 1.9 : 1.0,
-    burnTime: 0,
+    radius: 0.35, height: type === 'zombie' || type === 'skeleton' ? 1.9 : (shopkeep ? 1.95 : 1.0),
+    burnTime: 0, stationary: shopkeep, shopType: shopkeep ? (type === 'vape_shopkeeper' ? 'vape' : 'dodgy') : null,
   };
   m.mesh.position.copy(m.pos);
   scene.add(m.mesh);
@@ -921,6 +1199,14 @@ function mobCollides(m, px, py, pz) {
 let timeOfDay = 0.25; // 0..1, 0.25 = noon
 
 function updateMob(m, dt) {
+  // Shopkeepers stay put, just face the player
+  if (m.stationary) {
+    const toP = new THREE.Vector3().subVectors(player.pos, m.pos);
+    m.yaw = Math.atan2(-toP.x, -toP.z);
+    m.mesh.position.copy(m.pos);
+    m.mesh.rotation.y = m.yaw;
+    return;
+  }
   // AI
   const toPlayer = new THREE.Vector3().subVectors(player.pos, m.pos);
   const dist = toPlayer.length();
@@ -1001,6 +1287,22 @@ function updateMob(m, dt) {
 
 let mobSpawnTimer = 0;
 function updateMobSpawns(dt, px, pz) {
+  // Drain pending shopkeepers (chunk gen pushes; we instantiate the mob here)
+  if (pendingShopkeepers.length) {
+    for (let i = pendingShopkeepers.length - 1; i >= 0; i--) {
+      const s = pendingShopkeepers[i];
+      if (Math.hypot(s.x - px, s.z - pz) > 120) continue;
+      // Don't double-spawn
+      let already = false;
+      for (const m of mobs) {
+        if (m.stationary && Math.hypot(m.pos.x - s.x, m.pos.z - s.z) < 1.5) { already = true; break; }
+      }
+      if (!already) {
+        spawnMob(s.type === 'vape' ? 'vape_shopkeeper' : 'dodgy_shopkeeper', s.x, s.y, s.z);
+      }
+      pendingShopkeepers.splice(i, 1);
+    }
+  }
   mobSpawnTimer -= dt;
   if (mobSpawnTimer > 0) return;
   mobSpawnTimer = 3;
@@ -1145,6 +1447,33 @@ const ITEMS = {
   VAPE_WATERMELON: { key: 'vape_watermelon', name: 'Watermelon Vape', vape: true },
   VAPE_COTTONCANDY: { key: 'vape_cottoncandy', name: 'Cotton Candy Vape', vape: true },
   VAPE_GOLD: { key: 'vape_gold', name: 'Gold Edition Vape', vape: true, premium: true },
+  // Ores / gems
+  DIAMOND: { key: 'diamond', name: 'Diamond' },
+  EMERALD: { key: 'emerald', name: 'Emerald' },
+  LAPIS: { key: 'lapis', name: 'Lapis Lazuli' },
+  REDSTONE: { key: 'redstone', name: 'Redstone Dust' },
+  // Loyalty
+  LOYALTY: { key: 'loyalty', name: 'Vape Shop Loyalty Card' },
+  DODGY_LOYALTY: { key: 'dodgy_loyalty', name: 'Dodgy Shop "Loyalty" Card' },
+  // Sweets
+  LOLLIPOP: { key: 'lollipop', name: 'Lollipop', food: 2 },
+  GUMMY_WORMS: { key: 'gummy_worms', name: 'Gummy Worms', food: 3 },
+  CHOC_BAR: { key: 'choc_bar', name: 'Chocolate Bar', food: 4 },
+  SHERBET: { key: 'sherbet', name: 'Sherbet Dip', food: 2 },
+  GOBSTOPPER: { key: 'gobstopper', name: 'Gobstopper', food: 1 },
+  // Fake cigs
+  FAKE_CIG: { key: 'fake_cig', name: 'Fake Cigarette' },
+  FAKE_CIG_PACK: { key: 'fake_cig_pack', name: 'Fake Cig Pack' },
+  KNOCKOFF_VAPE: { key: 'knockoff_vape', name: '"Vap" Knockoff', vape: true },
+  EXPIRED_VAPE: { key: 'expired_vape', name: 'Expired Vape', vape: true },
+  // Misc
+  ARROW: { key: 'arrow', name: 'Arrow' },
+  FEATHER: { key: 'feather', name: 'Feather' },
+  STRING: { key: 'string', name: 'String' },
+  SLIMEBALL: { key: 'slimeball', name: 'Slimeball' },
+  HONEYCOMB: { key: 'honeycomb', name: 'Honeycomb' },
+  EYE_OF_ENDER: { key: 'eye_of_ender', name: 'Eye of Ender' },
+  BLAZE_ROD: { key: 'blaze_rod', name: 'Blaze Rod' },
 };
 const ITEMS_BY_KEY = {};
 for (const k in ITEMS) ITEMS_BY_KEY[ITEMS[k].key] = ITEMS[k];
@@ -1259,7 +1588,8 @@ document.addEventListener('pointerlockchange', () => {
     const anyModalOpen = !menu.classList.contains('hidden')
       || !document.getElementById('invModal').classList.contains('hidden')
       || !document.getElementById('craftModal').classList.contains('hidden')
-      || !document.getElementById('vapeModal').classList.contains('hidden');
+      || !document.getElementById('vapeModal').classList.contains('hidden')
+      || !document.getElementById('dialogueModal').classList.contains('hidden');
     if (!anyModalOpen) overlay.classList.remove('hidden');
   }
 });
@@ -1307,7 +1637,15 @@ document.addEventListener('mousedown', (e) => {
   const hit = raycast();
   if (!hit) return;
   if (hit.mob) {
-    if (e.button === 0) { hit.mob.hp -= item && item.weapon === 'sword' ? 8 : 1; player.attackTime = 0.25; knockback(hit.mob); }
+    // Right-click shopkeeper => dialogue
+    if (e.button === 2 && hit.mob.stationary) {
+      openDialogue(hit.mob);
+      return;
+    }
+    if (e.button === 0) {
+      if (hit.mob.stationary) { showToast("Hey! Don't hit the shopkeeper!"); return; }
+      hit.mob.hp -= item && item.weapon === 'sword' ? 8 : 1; player.attackTime = 0.25; knockback(hit.mob);
+    }
     return;
   }
   if (hit.boat) {
@@ -1320,15 +1658,34 @@ document.addEventListener('mousedown', (e) => {
     world.setBlock(hit.block.x, hit.block.y, hit.block.z, 0);
     if (id === BLOCKS.LEAVES.id && Math.random() < 0.1) addInv(ITEMS.APPLE);
     else if (id === BLOCKS.STONE.id) addInv(BLOCKS.COBBLE);
-    else if (id !== 0 && id !== BLOCKS.WATER.id && BLOCK_BY_ID[id] && !BLOCK_BY_ID[id].plant) addInv(BLOCK_BY_ID[id]);
+    else if (id === BLOCKS.COAL_ORE.id) addInv(ITEMS.COAL, 1 + (Math.random() < 0.3 ? 1 : 0));
+    else if (id === BLOCKS.IRON_ORE.id) addInv(ITEMS.IRON_INGOT);
+    else if (id === BLOCKS.GOLD_ORE.id) addInv(ITEMS.GOLD_INGOT);
+    else if (id === BLOCKS.DIAMOND_ORE.id) addInv(ITEMS.DIAMOND);
+    else if (id === BLOCKS.EMERALD_ORE.id) addInv(ITEMS.EMERALD);
+    else if (id === BLOCKS.LAPIS_ORE.id) addInv(ITEMS.LAPIS, 2 + (Math.random() * 4 | 0));
+    else if (id === BLOCKS.REDSTONE_ORE.id) addInv(ITEMS.REDSTONE, 3 + (Math.random() * 3 | 0));
+    else if (id === BLOCKS.BEDROCK.id) { /* no drop */ }
+    else if (id === BLOCKS.GRAVEL.id && Math.random() < 0.1) addInv(BLOCKS.GRAVEL);
+    else if (id !== 0 && id !== BLOCKS.WATER.id && id !== BLOCKS.LAVA.id && BLOCK_BY_ID[id] && !BLOCK_BY_ID[id].plant) addInv(BLOCK_BY_ID[id]);
   } else if (e.button === 2) {
     const blockId = world.getBlock(hit.block.x, hit.block.y, hit.block.z);
     // Bed interaction
     if (blockId === BLOCKS.BED.id) { trySleep(); return; }
     // Crafting table opens crafting
     if (blockId === BLOCKS.CRAFTBL.id) { toggleCrafting(); return; }
-    // Vape counter opens shop
-    if (blockId === BLOCKS.VAPECNT.id) { toggleVapeShop(); return; }
+    // Vape counter opens shop (find nearest shopkeeper to figure out vape vs dodgy)
+    if (blockId === BLOCKS.VAPECNT.id) {
+      let shopType = 'vape';
+      let bestD = Infinity;
+      for (const m of mobs) {
+        if (!m.stationary) continue;
+        const d = Math.hypot(m.pos.x - hit.block.x, m.pos.z - hit.block.z);
+        if (d < bestD && d < 6) { bestD = d; shopType = m.shopType; }
+      }
+      toggleVapeShop(shopType);
+      return;
+    }
     if (item && item.id !== undefined) {
       const p = hit.place;
       const minX = Math.floor(player.pos.x - player.radius), maxX = Math.floor(player.pos.x + player.radius);
@@ -1881,6 +2238,28 @@ function drawItemGlyph(ctx, key) {
   else if (key === 'gold_ingot') { ctx.fillStyle = '#f0d040'; ctx.fillRect(4, 5, 8, 6); ctx.fillStyle = '#aa8020'; ctx.fillRect(4, 5, 8, 1); }
   else if (key === 'bread') { ctx.fillStyle = '#cca060'; ctx.fillRect(2, 5, 12, 7); ctx.fillStyle = '#8a6030'; ctx.fillRect(2, 5, 12, 1); }
   else if (key === 'wheat') { ctx.fillStyle = '#d0a040'; ctx.fillRect(7, 3, 2, 10); ctx.fillStyle = '#ffd060'; ctx.fillRect(5, 5, 6, 2); ctx.fillRect(5, 8, 6, 2); }
+  else if (key === 'diamond') { ctx.fillStyle = '#4af5e8'; ctx.beginPath(); ctx.moveTo(8, 3); ctx.lineTo(13, 8); ctx.lineTo(8, 13); ctx.lineTo(3, 8); ctx.closePath(); ctx.fill(); ctx.fillStyle = '#fff'; ctx.fillRect(7, 5, 2, 1); }
+  else if (key === 'emerald') { ctx.fillStyle = '#28d850'; ctx.fillRect(4, 4, 8, 8); ctx.fillStyle = '#88ffaa'; ctx.fillRect(5, 5, 3, 2); }
+  else if (key === 'lapis') { ctx.fillStyle = '#2050d0'; ctx.fillRect(4, 4, 8, 8); ctx.fillStyle = '#f0d040'; ctx.fillRect(6, 6, 1, 1); ctx.fillRect(9, 8, 1, 1); }
+  else if (key === 'redstone') { ctx.fillStyle = '#e02020'; for (let i = 0; i < 8; i++) ctx.fillRect(2+Math.random()*12|0, 4+Math.random()*9|0, 2, 2); }
+  else if (key === 'loyalty') { ctx.fillStyle = '#ff80ff'; ctx.fillRect(2, 5, 12, 8); ctx.fillStyle = '#00ffff'; ctx.fillRect(3, 6, 5, 1); ctx.fillStyle = '#fff'; ctx.fillRect(3, 10, 8, 1); }
+  else if (key === 'dodgy_loyalty') { ctx.fillStyle = '#553'; ctx.fillRect(2, 5, 12, 8); ctx.fillStyle = '#aa3'; ctx.fillRect(3, 6, 5, 1); ctx.fillStyle = '#222'; ctx.fillRect(3, 10, 8, 1); }
+  else if (key === 'lollipop') { ctx.fillStyle = '#fff'; ctx.fillRect(7, 8, 2, 6); ctx.fillStyle = '#e02080'; ctx.beginPath(); ctx.arc(8, 6, 4, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(8, 6, 2, 0, Math.PI*2); ctx.fill(); }
+  else if (key === 'gummy_worms') { for (let i = 0; i < 3; i++) { ctx.fillStyle = ['#e02060','#20c060','#f0c040'][i]; ctx.fillRect(2+i*4, 4+i*2, 2, 7); } }
+  else if (key === 'choc_bar') { ctx.fillStyle = '#5a3010'; ctx.fillRect(2, 4, 12, 9); for (let i = 1; i < 4; i++) { ctx.fillStyle = '#3a1810'; ctx.fillRect(2+i*3, 4, 1, 9); } }
+  else if (key === 'sherbet') { ctx.fillStyle = '#f0a020'; ctx.fillRect(3, 4, 10, 9); ctx.fillStyle = '#fff'; ctx.fillRect(4, 5, 8, 2); }
+  else if (key === 'gobstopper') { ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(8, 8, 5, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#e02060'; ctx.beginPath(); ctx.arc(8, 8, 3, 0, Math.PI*2); ctx.fill(); }
+  else if (key === 'fake_cig') { ctx.fillStyle = '#eee'; ctx.fillRect(2, 7, 11, 2); ctx.fillStyle = '#f0c040'; ctx.fillRect(11, 7, 3, 2); ctx.fillStyle = '#ff6020'; ctx.fillRect(2, 7, 1, 2); }
+  else if (key === 'fake_cig_pack') { ctx.fillStyle = '#ddd'; ctx.fillRect(3, 3, 10, 11); ctx.fillStyle = '#c02020'; ctx.fillRect(3, 3, 10, 3); ctx.fillStyle = '#fff'; ctx.font = '4px sans-serif'; ctx.fillText('FAGS', 4, 11); }
+  else if (key === 'knockoff_vape') { ctx.fillStyle = '#8060c0'; ctx.fillRect(5, 3, 6, 11); ctx.fillStyle = '#222'; ctx.fillRect(6, 1, 4, 3); ctx.fillStyle = '#fff'; ctx.font = '4px sans-serif'; ctx.fillText('Vap', 5, 11); }
+  else if (key === 'expired_vape') { ctx.fillStyle = '#557030'; ctx.fillRect(5, 3, 6, 11); ctx.fillStyle = '#222'; ctx.fillRect(6, 1, 4, 3); ctx.fillStyle = '#aa3'; ctx.fillRect(6, 8, 4, 1); }
+  else if (key === 'arrow') { ctx.fillStyle = '#aaa'; ctx.fillRect(7, 2, 2, 9); ctx.fillStyle = '#ddd'; ctx.beginPath(); ctx.moveTo(8, 1); ctx.lineTo(11, 4); ctx.lineTo(5, 4); ctx.closePath(); ctx.fill(); ctx.fillStyle = '#eee'; ctx.fillRect(5, 11, 6, 2); }
+  else if (key === 'feather') { ctx.fillStyle = '#eee'; ctx.fillRect(7, 2, 2, 11); ctx.fillStyle = '#ccc'; for (let i = 0; i < 5; i++) { ctx.fillRect(5, 4+i*2, 6, 1); } }
+  else if (key === 'string') { ctx.fillStyle = '#eee'; ctx.fillRect(3, 7, 10, 2); for (let i = 0; i < 5; i++) ctx.fillRect(3+i*2, 6+(i%2)*4, 1, 1); }
+  else if (key === 'slimeball') { ctx.fillStyle = '#88dd88'; ctx.beginPath(); ctx.arc(8, 8, 5, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#aaffaa'; ctx.fillRect(6, 6, 2, 1); }
+  else if (key === 'honeycomb') { ctx.fillStyle = '#f0c040'; ctx.fillRect(3, 3, 10, 10); ctx.fillStyle = '#a08020'; for (let y = 0; y < 3; y++) for (let x = 0; x < 3; x++) ctx.strokeRect(3+x*3, 3+y*3, 3, 3); }
+  else if (key === 'eye_of_ender') { ctx.fillStyle = '#1a2a40'; ctx.beginPath(); ctx.arc(8, 8, 5, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#80f080'; ctx.fillRect(6, 6, 4, 4); }
+  else if (key === 'blaze_rod') { ctx.fillStyle = '#f0a020'; ctx.fillRect(7, 2, 2, 12); ctx.fillStyle = '#ffe040'; ctx.fillRect(7, 4, 2, 1); ctx.fillRect(7, 8, 2, 1); ctx.fillRect(7, 12, 2, 1); }
   else if (key && key.startsWith('vape_')) {
     const colors = {
       vape_blueberry: ['#4060c0', '#88aaff'],
@@ -2003,6 +2382,216 @@ function renderVapeShop() {
 document.getElementById('vapeClose').addEventListener('click', toggleVapeShop);
 vapeModal.addEventListener('click', (e) => { if (e.target === vapeModal) toggleVapeShop(); });
 
+// ============== Dodgy Shop ==============
+const DODGY_TRADES = [
+  { in: [['b' + BLOCKS.COBBLE.id, 1]], out: 'i' + ITEMS.LOLLIPOP.key, label: '1 Cobble → Lollipop' },
+  { in: [['b' + BLOCKS.SAND.id, 2]], out: 'i' + ITEMS.SHERBET.key, label: '2 Sand → Sherbet Dip' },
+  { in: [['i' + ITEMS.WHEAT.key, 1]], out: 'i' + ITEMS.GUMMY_WORMS.key, label: '1 Wheat → Gummy Worms' },
+  { in: [['b' + BLOCKS.DIRT.id, 4]], out: 'i' + ITEMS.GOBSTOPPER.key, label: '4 Dirt → "Gobstopper"' },
+  { in: [['i' + ITEMS.ROTTEN.key, 2]], out: 'i' + ITEMS.CHOC_BAR.key, label: '2 Rotten Flesh → "Chocolate" Bar' },
+  { in: [['b' + BLOCKS.LEAVES.id, 1]], out: 'i' + ITEMS.FAKE_CIG.key, label: '1 Leaves → Fake Cigarette' },
+  { in: [['b' + BLOCKS.LEAVES.id, 5]], out: 'i' + ITEMS.FAKE_CIG_PACK.key, label: '5 Leaves → Fake Cig Pack' },
+  { in: [['b' + BLOCKS.PLANK.id, 1]], out: 'i' + ITEMS.KNOCKOFF_VAPE.key, label: '1 Plank → "Vap" Knockoff' },
+  { in: [['i' + ITEMS.BONE.key, 1]], out: 'i' + ITEMS.EXPIRED_VAPE.key, label: '1 Bone → Expired Vape' },
+  { in: [['i' + ITEMS.IRON_INGOT.key, 1]], out: 'i' + ITEMS.DODGY_LOYALTY.key, label: '1 Iron → Dodgy Loyalty Card' },
+];
+
+// ============== Flavour of the week (deterministic per in-game week) ==============
+function inGameDay() { return Math.floor((timeOfDay) + (totalElapsedSeconds / settings.dayLength)); }
+let totalElapsedSeconds = 0;
+function weekOfYear() { return Math.floor(inGameDay() / 7); }
+function flavourOfTheWeek() {
+  const flavors = ['vape_mint','vape_blueberry','vape_mango','vape_strawberry','vape_watermelon','vape_cottoncandy'];
+  const idx = ((WORLD_SEED + weekOfYear() * 13) >>> 0) % flavors.length;
+  return flavors[idx];
+}
+
+function hasLoyalty(shopType) {
+  return shopType === 'vape' ? !!player.inventory['i' + ITEMS.LOYALTY.key] : !!player.inventory['i' + ITEMS.DODGY_LOYALTY.key];
+}
+// Loyalty: reduces each non-rare ingredient cost by 1 (min 1)
+function applyDiscount(trade, hasLoyal, flavorMatch) {
+  const out = JSON.parse(JSON.stringify(trade));
+  if (hasLoyal) {
+    out.in = out.in.map(([k, c]) => [k, Math.max(1, c - 1)]);
+  }
+  if (flavorMatch) {
+    // Flavor of week is half off (round up to min 1)
+    out.in = out.in.map(([k, c]) => [k, Math.max(1, Math.ceil(c / 2))]);
+  }
+  return out;
+}
+
+// ============== Shop renderers (unified) ==============
+function renderShop(shopType) {
+  const list = document.getElementById('vapeList');
+  list.innerHTML = '';
+  const trades = shopType === 'vape' ? VAPE_TRADES.slice() : DODGY_TRADES.slice();
+  // Add loyalty card purchase to vape shop if missing
+  if (shopType === 'vape' && !player.inventory['i' + ITEMS.LOYALTY.key]) {
+    trades.unshift({ in: [['i' + ITEMS.GOLD_INGOT.key, 1], ['i' + ITEMS.WHEAT.key, 2]], out: 'i' + ITEMS.LOYALTY.key, label: 'Get a Loyalty Card (1 Gold + 2 Wheat)' });
+  }
+  const flavor = flavourOfTheWeek();
+  const loyal = hasLoyalty(shopType);
+  // Header text
+  const title = document.getElementById('vapeTitle');
+  const subtitle = document.getElementById('vapeSubtitle');
+  const loyaltyEl = document.getElementById('vapeLoyalty');
+  const flavorEl = document.getElementById('vapeFlavor');
+  if (shopType === 'vape') {
+    title.textContent = 'VAPE SHOP';
+    title.style.color = '#ff80ff'; title.style.textShadow = '0 0 8px #ff00ff';
+    document.querySelector('#vapeModal .panel').style.borderColor = '#ff00ff';
+    subtitle.textContent = 'Trade your items for premium vapes.';
+    loyaltyEl.textContent = loyal ? '✓ Loyalty card active — 1 ingredient off each trade' : 'No loyalty card. Buy one to save on every trade!';
+    const fName = lookupKey('i' + flavor).name;
+    flavorEl.textContent = '★ Flavour of the Week: ' + fName + ' (50% off)';
+  } else {
+    title.textContent = 'DODGY SHOP';
+    title.style.color = '#aaff60'; title.style.textShadow = '0 0 8px #88dd44';
+    document.querySelector('#vapeModal .panel').style.borderColor = '#88dd44';
+    subtitle.textContent = 'Sweets, fake fags, knockoff vapes. No questions asked.';
+    loyaltyEl.textContent = loyal ? '✓ Dodgy loyalty active — 1 ingredient off' : '';
+    flavorEl.textContent = '';
+  }
+  for (const baseTrade of trades) {
+    const isFlavor = shopType === 'vape' && baseTrade.out === 'i' + flavor;
+    const trade = applyDiscount(baseTrade, loyal, isFlavor);
+    const row = document.createElement('div');
+    row.className = 'craft-row';
+    row.style.background = shopType === 'vape' ? '#2a1040' : '#1a2010';
+    row.style.borderLeft = '3px solid ' + (shopType === 'vape' ? '#ff00ff' : '#88dd44');
+    if (isFlavor) row.style.boxShadow = '0 0 12px #ffe040';
+    const ing = document.createElement('div'); ing.className = 'ingredients';
+    let can = true;
+    for (const [k, c] of trade.in) {
+      const item = lookupKey(k);
+      const have = player.inventory[k] || 0;
+      if (have < c) can = false;
+      const el = makeSlotEl(item, c);
+      const hl = document.createElement('div');
+      hl.style.cssText = 'font-size:10px;color:' + (have >= c ? '#7f7' : '#f77');
+      hl.textContent = `(${have}/${c})`;
+      el.appendChild(hl);
+      ing.appendChild(el);
+    }
+    row.appendChild(ing);
+    const arrow = document.createElement('div'); arrow.className = 'arrow'; arrow.textContent = '→'; row.appendChild(arrow);
+    row.appendChild(makeSlotEl(lookupKey(trade.out), 1));
+    const lbl = document.createElement('div'); lbl.className = 'label';
+    lbl.style.color = shopType === 'vape' ? '#ff80ff' : '#aaff60';
+    lbl.textContent = trade.label + (isFlavor ? ' ★' : '');
+    row.appendChild(lbl);
+    const btn = document.createElement('button'); btn.textContent = 'Trade'; btn.disabled = !can;
+    btn.style.background = can ? (shopType === 'vape' ? '#c020a0' : '#608030') : '#444';
+    btn.addEventListener('click', () => {
+      for (const [k, c] of trade.in) {
+        player.inventory[k] -= c;
+        if (player.inventory[k] <= 0) delete player.inventory[k];
+      }
+      player.inventory[trade.out] = (player.inventory[trade.out] || 0) + 1;
+      showToast('Got ' + lookupKey(trade.out).name);
+      renderShop(shopType);
+    });
+    row.appendChild(btn);
+    list.appendChild(row);
+  }
+}
+
+let currentShopType = 'vape';
+const origToggleVapeShop = toggleVapeShop;
+toggleVapeShop = function(shopType = 'vape') {
+  const open = vapeModal.classList.contains('hidden');
+  if (open) {
+    currentShopType = shopType;
+    vapeModal.classList.remove('hidden');
+    document.exitPointerLock();
+    overlay.classList.add('hidden');
+    renderShop(shopType);
+  } else {
+    vapeModal.classList.add('hidden');
+    renderer.domElement.requestPointerLock();
+  }
+};
+
+// ============== Dialogue ==============
+const VAPE_LINES = [
+  "Alright mate, what flavour you after today?",
+  "Got that {flavor} in proper. Mad delicious.",
+  "New shipment came in this morning, fresh as.",
+  "You tried the cotton candy? Hits different.",
+  "Bare lit, fam. ID? Nah you're sound.",
+  "Loyalty card pays for itself bro, trust.",
+  "Premium gold vape is on the top shelf, you got the cheddar for it?",
+  "Mango's flying off the shelf this week.",
+  "I'm only doing this till my SoundCloud takes off.",
+  "Watch the kid in the corner — he's been eyeing the disposables.",
+];
+const DODGY_LINES = [
+  "Oi oi. You didn't see nothin', yeah?",
+  "Pssst... want a cheeky little fake fag?",
+  "Gobstoppers, mate. They're.. mostly dirt. But like, in a fun way.",
+  "These vapes? Brand new. Definitely not expired. Don't read the date.",
+  "If anyone asks, you bought the lollipop at the corner shop.",
+  "Got a chocolate bar that's only 30% rat. Bargain.",
+  "The 'Vap' brand is way better than that fancy stuff up the road.",
+  "Sweets, fags, vapes, all under one dodgy roof.",
+  "Free taster? I'm joking. £3 mate.",
+  "My cousin makes these in his bathtub. Premium product.",
+];
+
+let currentDialogueMob = null;
+const dialogueModal = document.getElementById('dialogueModal');
+function openDialogue(mob) {
+  currentDialogueMob = mob;
+  const isVape = mob.shopType === 'vape';
+  document.getElementById('diaName').textContent = isVape ? 'Vape Shopkeeper' : 'Dodgy Geezer';
+  document.getElementById('diaName').style.color = isVape ? '#ffe040' : '#aaff60';
+  const lines = isVape ? VAPE_LINES : DODGY_LINES;
+  const idx = Math.floor(Math.random() * lines.length);
+  let line = lines[idx];
+  if (line.includes('{flavor}')) {
+    line = line.replace('{flavor}', lookupKey('i' + flavourOfTheWeek()).name);
+  }
+  document.getElementById('diaText').textContent = line;
+  const choices = document.getElementById('diaChoices');
+  choices.innerHTML = '';
+  const open = document.createElement('button');
+  open.textContent = isVape ? 'Browse vapes →' : 'Show me the goods →';
+  open.style.cssText = 'background:' + (isVape ? '#c020a0' : '#608030') + ';color:#fff;border:0;padding:8px 16px;cursor:pointer;font-family:inherit';
+  open.addEventListener('click', () => {
+    dialogueModal.classList.add('hidden');
+    toggleVapeShop(mob.shopType);
+  });
+  const fotw = document.createElement('button');
+  fotw.textContent = "What's the flavour of the week?";
+  fotw.style.cssText = 'background:#444;color:#fff;border:0;padding:8px 16px;cursor:pointer;font-family:inherit';
+  fotw.addEventListener('click', () => {
+    const fName = lookupKey('i' + flavourOfTheWeek()).name;
+    document.getElementById('diaText').textContent = isVape
+      ? `This week it's ${fName} — half off if you grab one, mate.`
+      : "Flavour? Flavour of the week is whatever doesn't poison ya, mate.";
+  });
+  const loyaltyAsk = document.createElement('button');
+  loyaltyAsk.textContent = 'Tell me about the loyalty card';
+  loyaltyAsk.style.cssText = 'background:#444;color:#fff;border:0;padding:8px 16px;cursor:pointer;font-family:inherit';
+  loyaltyAsk.addEventListener('click', () => {
+    document.getElementById('diaText').textContent = isVape
+      ? "Get a Loyalty Card for 1 Gold Ingot + 2 Wheat. Saves you an ingredient on every trade. Sweet deal innit."
+      : "Dodgy loyalty? Yeah, costs ya 1 iron. Don't ask what it actually does. It does.. something.";
+  });
+  const close = document.createElement('button');
+  close.textContent = 'Later'; close.style.cssText = 'background:#444;color:#fff;border:0;padding:8px 16px;cursor:pointer;font-family:inherit';
+  close.addEventListener('click', () => { dialogueModal.classList.add('hidden'); renderer.domElement.requestPointerLock(); });
+  choices.appendChild(open); choices.appendChild(fotw); choices.appendChild(loyaltyAsk); choices.appendChild(close);
+  dialogueModal.classList.remove('hidden');
+  document.exitPointerLock();
+  overlay.classList.add('hidden');
+}
+dialogueModal.addEventListener('click', (e) => {
+  if (e.target === dialogueModal) { dialogueModal.classList.add('hidden'); renderer.domElement.requestPointerLock(); }
+});
+
 // ============== Crafting ==============
 // Recipe: { in: [[item, count], ...], out: [item, count] }
 function rIn(item, n) { return [item, n]; }
@@ -2118,6 +2707,9 @@ function resetWorld(seed) {
   world.chunks.clear();
   world.modifiedBlocks.clear();
   villageRegistry.length = 0;
+  vapeShopRegistry.length = 0;
+  dodgyShopRegistry.length = 0;
+  pendingShopkeepers.length = 0;
   for (const m of mobs) scene.remove(m.mesh);
   mobs.length = 0;
   initNoise(seed);
@@ -2149,6 +2741,7 @@ function animate(now) {
   requestAnimationFrame(animate);
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
+  totalElapsedSeconds += dt;
   updateDayNight(dt);
   move(dt);
   world.update(player.pos.x, player.pos.z);
