@@ -17,7 +17,26 @@
   .slot canvas { width: 28px; height: 28px; image-rendering: pixelated; }
   .slot .label { position: absolute; bottom: -2px; right: 0; font-size: 9px; padding: 0 2px; background: rgba(0,0,0,0.7); }
   #hp { position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%); display: flex; gap: 2px; }
-  .heart { width: 18px; height: 18px; }
+  #hunger { position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); display: flex; gap: 2px; }
+  .heart, .drumstick { width: 18px; height: 18px; }
+  #toast { position: absolute; top: 80px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); padding: 6px 12px; font-size: 13px; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+  #toast.show { opacity: 1; }
+  #invModal, #craftModal { position: absolute; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; }
+  #invModal .panel, #craftModal .panel { background: #222; border: 2px solid #555; padding: 16px; max-width: 600px; max-height: 80vh; overflow-y: auto; }
+  #invModal h2, #craftModal h2 { margin: 0 0 8px; }
+  .inv-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
+  .inv-slot { width: 48px; height: 48px; border: 2px solid #555; background: #333; display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; }
+  .inv-slot:hover { border-color: #fff; }
+  .inv-slot canvas { width: 36px; height: 36px; image-rendering: pixelated; }
+  .inv-slot .count { position: absolute; bottom: 0; right: 2px; font-size: 11px; text-shadow: 1px 1px 1px #000; }
+  .inv-slot .name { position: absolute; bottom: -16px; left: 0; right: 0; font-size: 10px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0; }
+  .inv-slot:hover .name { opacity: 1; }
+  .craft-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; padding: 6px; background: #333; }
+  .craft-row .ingredients { display: flex; gap: 4px; }
+  .craft-row .arrow { opacity: 0.7; }
+  .craft-row button { background: #4a6; color: #fff; border: 0; padding: 4px 12px; cursor: pointer; font-family: inherit; }
+  .craft-row button:disabled { background: #444; color: #888; cursor: not-allowed; }
+  .craft-row .label { flex: 1; font-size: 12px; }
   #minimap { position: absolute; top: 10px; right: 10px; width: 200px; height: 200px; border: 2px solid #000; background: #87CEEB; image-rendering: pixelated; display: none; }
   #minimap.shown { display: block; }
   #overlay, #menu { position: absolute; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; flex-direction: column; text-align: center; }
@@ -43,8 +62,22 @@
 <div id="info">FPS: <span id="fps">0</span><br>Pos: <span id="pos">0,0,0</span><br>Biome: <span id="biome">-</span><br>Time: <span id="tod">-</span></div>
 <div id="crosshair"></div>
 <canvas id="minimap" width="200" height="200"></canvas>
+<div id="hunger"></div>
 <div id="hp"></div>
 <div id="hotbar"></div>
+<div id="toast"></div>
+<div id="invModal" class="hidden"><div class="panel">
+  <h2>Inventory (E to close)</h2>
+  <p style="font-size:12px;opacity:0.7">Click a block to put it in your current hotbar slot. Materials and food are shown with counts.</p>
+  <h3 style="margin:8px 0 4px;font-size:14px">Blocks</h3>
+  <div class="inv-grid" id="invBlocks"></div>
+  <h3 style="margin:12px 0 4px;font-size:14px">Items</h3>
+  <div class="inv-grid" id="invItems"></div>
+</div></div>
+<div id="craftModal" class="hidden"><div class="panel">
+  <h2>Crafting (C to close)</h2>
+  <div id="craftList"></div>
+</div></div>
 <div id="overlay">
   <h1>Minecraft Clone</h1>
   <p>Click to play</p>
@@ -52,6 +85,7 @@
   <p>Mouse = Look &nbsp; Left = Break/Attack &nbsp; Right = Place/Ride</p>
   <p>1-9, 0, Shift+1-8 = Hotbar &nbsp; Scroll = Cycle</p>
   <p>F = Fly &nbsp; B = Spawn boat &nbsp; M = Minimap &nbsp; Tab = Menu</p>
+  <p>E = Inventory &nbsp; C = Crafting &nbsp; G = Eat food &nbsp; Right-click bed at night = Sleep</p>
 </div>
 <div id="menu" class="hidden">
   <div class="panel">
@@ -849,6 +883,13 @@ function updateMob(m, dt) {
   else { if (m.vel.y < 0) m.onGround = true; m.vel.y = 0; }
 
   if (m.pos.y < -20 || m.hp <= 0) {
+    // Drops
+    if (m.hp <= 0) {
+      if (m.type === 'pig') addInv(ITEMS.PORK, 1 + (Math.random() < 0.5 ? 1 : 0));
+      else if (m.type === 'cow') addInv(ITEMS.BEEF, 1 + (Math.random() < 0.5 ? 1 : 0));
+      else if (m.type === 'zombie') { if (Math.random() < 0.7) addInv(ITEMS.ROTTEN); }
+      else if (m.type === 'skeleton') { addInv(ITEMS.BONE); if (Math.random() < 0.5) addInv(ITEMS.BONE); }
+    }
     scene.remove(m.mesh);
     const i = mobs.indexOf(m);
     if (i >= 0) mobs.splice(i, 1);
@@ -902,10 +943,14 @@ function updateMobSpawns(dt, px, pz) {
 const boats = [];
 function makeBoatMesh() {
   const g = new THREE.Group();
-  const hull = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.4, 1.0), new THREE.MeshLambertMaterial({ color: 0x8B5A2B }));
+  // Long axis along -Z (forward direction)
+  const hull = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.4, 2.0), new THREE.MeshLambertMaterial({ color: 0x8B5A2B }));
   g.add(hull);
-  const inside = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.2, 0.7), new THREE.MeshLambertMaterial({ color: 0x6B4220 }));
+  const inside = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.2, 1.6), new THREE.MeshLambertMaterial({ color: 0x6B4220 }));
   inside.position.y = 0.2; g.add(inside);
+  // Bow point (small triangle prow indicator)
+  const bow = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.3, 0.3), new THREE.MeshLambertMaterial({ color: 0x6B4220 }));
+  bow.position.set(0, 0.1, -1.0); g.add(bow);
   return g;
 }
 function spawnBoat(x, z) {
@@ -955,9 +1000,58 @@ const player = {
   onGround: false, yaw: 0, pitch: 0,
   fly: false, height: 1.7, radius: 0.3,
   boat: null, hp: 20, maxHp: 20,
+  hunger: 20, maxHunger: 20, saturation: 5,
   hurtTime: 0, attackTime: 0,
   hasSword: true, hasBow: true,
+  inventory: {}, // itemKey -> count
+  exhaustion: 0,
 };
+// Items (non-block consumables and materials)
+const ITEMS = {
+  STICK: { key: 'stick', name: 'Stick' },
+  APPLE: { key: 'apple', name: 'Apple', food: 4 },
+  PORK: { key: 'pork', name: 'Pork', food: 6 },
+  BEEF: { key: 'beef', name: 'Beef', food: 6 },
+  BONE: { key: 'bone', name: 'Bone' },
+  ROTTEN: { key: 'rotten', name: 'Rotten Flesh', food: 2 },
+  COAL: { key: 'coal', name: 'Coal' },
+  IRON_INGOT: { key: 'iron_ingot', name: 'Iron Ingot' },
+  GOLD_INGOT: { key: 'gold_ingot', name: 'Gold Ingot' },
+  BREAD: { key: 'bread', name: 'Bread', food: 5 },
+  WHEAT: { key: 'wheat', name: 'Wheat' },
+};
+const ITEMS_BY_KEY = {};
+for (const k in ITEMS) ITEMS_BY_KEY[ITEMS[k].key] = ITEMS[k];
+
+function invKey(item) {
+  if (typeof item === 'object' && item.id !== undefined) return 'b' + item.id;
+  if (typeof item === 'object' && item.key) return 'i' + item.key;
+  if (typeof item === 'number') return 'b' + item;
+  return 'i' + item;
+}
+function addInv(item, count = 1) {
+  const k = invKey(item);
+  player.inventory[k] = (player.inventory[k] || 0) + count;
+  showToast(`+${count} ${itemName(k)}`);
+}
+function takeInv(item, count = 1) {
+  const k = invKey(item);
+  if ((player.inventory[k] || 0) < count) return false;
+  player.inventory[k] -= count;
+  if (player.inventory[k] <= 0) delete player.inventory[k];
+  return true;
+}
+function itemName(k) {
+  if (k.startsWith('b')) { const b = BLOCK_BY_ID[parseInt(k.slice(1))]; return b ? b.name : '?'; }
+  if (k.startsWith('i')) { const it = ITEMS_BY_KEY[k.slice(1)]; return it ? it.name : '?'; }
+  return '?';
+}
+let toastTimer = 0;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  toastTimer = 1.6;
+}
 
 function playerHurt() {
   player.hurtTime = 0.3;
@@ -1048,6 +1142,8 @@ document.addEventListener('keydown', (e) => {
   if (e.code === 'KeyF') player.fly = !player.fly;
   if (e.code === 'KeyM') { settings.mapShown = !settings.mapShown; document.getElementById('minimap').classList.toggle('shown', settings.mapShown); saveSettings(); document.getElementById('mapShown').checked = settings.mapShown; }
   if (e.code === 'Tab') { e.preventDefault(); toggleMenu(); }
+  if (e.code === 'KeyE') { e.preventDefault(); toggleInventory(); }
+  if (e.code === 'KeyC') { e.preventDefault(); toggleCrafting(); }
   if (e.code === 'KeyB' && document.pointerLockElement === renderer.domElement) spawnBoat(player.pos.x + 1, player.pos.z);
   if (e.code.startsWith('Digit')) {
     let n = parseInt(e.code.slice(5)) - 1;
@@ -1087,14 +1183,26 @@ document.addEventListener('mousedown', (e) => {
     else if (e.button === 0) { scene.remove(hit.boat.mesh); const i = boats.indexOf(hit.boat); if (i >= 0) boats.splice(i, 1); }
     return;
   }
-  if (e.button === 0) world.setBlock(hit.block.x, hit.block.y, hit.block.z, 0);
-  else if (e.button === 2 && item.id !== undefined) {
-    const p = hit.place;
-    const minX = Math.floor(player.pos.x - player.radius), maxX = Math.floor(player.pos.x + player.radius);
-    const minZ = Math.floor(player.pos.z - player.radius), maxZ = Math.floor(player.pos.z + player.radius);
-    const minY = Math.floor(player.pos.y - player.height), maxY = Math.floor(player.pos.y);
-    if (p.x >= minX && p.x <= maxX && p.z >= minZ && p.z <= maxZ && p.y >= minY && p.y <= maxY) return;
-    world.setBlock(p.x, p.y, p.z, item.id);
+  if (e.button === 0) {
+    const id = world.getBlock(hit.block.x, hit.block.y, hit.block.z);
+    world.setBlock(hit.block.x, hit.block.y, hit.block.z, 0);
+    if (id === BLOCKS.LEAVES.id && Math.random() < 0.1) addInv(ITEMS.APPLE);
+    else if (id === BLOCKS.STONE.id) addInv(BLOCKS.COBBLE);
+    else if (id !== 0 && id !== BLOCKS.WATER.id && BLOCK_BY_ID[id] && !BLOCK_BY_ID[id].plant) addInv(BLOCK_BY_ID[id]);
+  } else if (e.button === 2) {
+    const blockId = world.getBlock(hit.block.x, hit.block.y, hit.block.z);
+    // Bed interaction
+    if (blockId === BLOCKS.BED.id) { trySleep(); return; }
+    // Crafting table opens crafting
+    if (blockId === BLOCKS.CRAFTBL.id) { toggleCrafting(); return; }
+    if (item && item.id !== undefined) {
+      const p = hit.place;
+      const minX = Math.floor(player.pos.x - player.radius), maxX = Math.floor(player.pos.x + player.radius);
+      const minZ = Math.floor(player.pos.z - player.radius), maxZ = Math.floor(player.pos.z + player.radius);
+      const minY = Math.floor(player.pos.y - player.height), maxY = Math.floor(player.pos.y);
+      if (p.x >= minX && p.x <= maxX && p.z >= minZ && p.z <= maxZ && p.y >= minY && p.y <= maxY) return;
+      world.setBlock(p.x, p.y, p.z, item.id);
+    }
   }
 });
 document.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -1155,6 +1263,7 @@ updateHotbar();
 
 // HP UI
 const hpEl = document.getElementById('hp');
+const hungerEl = document.getElementById('hunger');
 function updateHP() {
   hpEl.innerHTML = '';
   const hearts = 10;
@@ -1174,6 +1283,24 @@ function updateHP() {
       }
     }
     hpEl.appendChild(c);
+  }
+  hungerEl.innerHTML = '';
+  const perD = player.maxHunger / 10;
+  for (let i = 0; i < 10; i++) {
+    const c = document.createElement('canvas');
+    c.className = 'drumstick'; c.width = 18; c.height = 18;
+    const ctx = c.getContext('2d');
+    const fillAmt = Math.max(0, Math.min(1, (player.hunger - i * perD) / perD));
+    ctx.fillStyle = '#332010'; ctx.fillRect(3, 4, 10, 10); ctx.fillRect(11, 9, 5, 4);
+    if (fillAmt > 0) {
+      ctx.fillStyle = '#b07030';
+      ctx.fillRect(3, 4, 10, 10); ctx.fillRect(11, 9, 5, 4);
+      if (fillAmt < 1) {
+        ctx.fillStyle = '#332010';
+        ctx.fillRect(3 + Math.ceil(fillAmt * 13), 4, 18, 18);
+      }
+    }
+    hungerEl.appendChild(c);
   }
 }
 
@@ -1214,7 +1341,8 @@ function raycast() {
 function raycastEntities(origin, dir, maxT) {
   let bestT = maxT, best = null;
   for (const b of boats) {
-    const t = rayBox(origin, dir, b.pos.x - 1, b.pos.y - 0.3, b.pos.z - 0.5, b.pos.x + 1, b.pos.y + 0.3, b.pos.z + 0.5);
+    // Boat is rotated by yaw; do axis-aligned approximation with larger box
+    const t = rayBox(origin, dir, b.pos.x - 1.1, b.pos.y - 0.3, b.pos.z - 1.1, b.pos.x + 1.1, b.pos.y + 0.6, b.pos.z + 1.1);
     if (t !== null && t < bestT) { bestT = t; best = { boat: b }; }
   }
   for (const m of mobs) {
@@ -1517,6 +1645,202 @@ function syncSettingsUI() {
 }
 applySettings(); syncSettingsUI();
 
+// ============== Hunger & Sleep ==============
+function applyExhaustion(amount) {
+  player.exhaustion += amount;
+  while (player.exhaustion >= 4) {
+    player.exhaustion -= 4;
+    if (player.saturation > 0) player.saturation = Math.max(0, player.saturation - 1);
+    else if (player.hunger > 0) player.hunger = Math.max(0, player.hunger - 1);
+  }
+}
+function eatItem(itemKey) {
+  const k = 'i' + itemKey;
+  if (!player.inventory[k]) return false;
+  const item = ITEMS_BY_KEY[itemKey];
+  if (!item || !item.food) return false;
+  if (player.hunger >= player.maxHunger) { showToast('Not hungry'); return false; }
+  takeInv(item);
+  player.hunger = Math.min(player.maxHunger, player.hunger + item.food);
+  player.saturation = Math.min(player.hunger, player.saturation + Math.min(item.food, 4));
+  showToast(`Ate ${item.name}`);
+  return true;
+}
+function trySleep() {
+  const isNight = timeOfDay > 0.7 || timeOfDay < 0.05;
+  if (!isNight) { showToast('You can only sleep at night'); return; }
+  // Fade and fast-forward
+  showToast('Sleeping...');
+  timeOfDay = 0.22;
+  player.hp = player.maxHp;
+  player.hunger = Math.max(player.hunger, 14);
+  // Despawn nearby hostile mobs
+  for (let i = mobs.length - 1; i >= 0; i--) {
+    if (mobs[i].hostile && Math.hypot(mobs[i].pos.x - player.pos.x, mobs[i].pos.z - player.pos.z) < 30) {
+      scene.remove(mobs[i].mesh); mobs.splice(i, 1);
+    }
+  }
+}
+
+// ============== Inventory modal ==============
+const invModal = document.getElementById('invModal');
+const craftModal = document.getElementById('craftModal');
+function toggleInventory() {
+  const open = invModal.classList.contains('hidden');
+  if (open) {
+    invModal.classList.remove('hidden');
+    document.exitPointerLock();
+    overlay.classList.add('hidden');
+    renderInventory();
+  } else {
+    invModal.classList.add('hidden');
+    renderer.domElement.requestPointerLock();
+  }
+}
+function toggleCrafting() {
+  const open = craftModal.classList.contains('hidden');
+  if (open) {
+    craftModal.classList.remove('hidden');
+    document.exitPointerLock();
+    overlay.classList.add('hidden');
+    renderCrafting();
+  } else {
+    craftModal.classList.add('hidden');
+    renderer.domElement.requestPointerLock();
+  }
+}
+function makeSlotEl(item, count) {
+  const slot = document.createElement('div');
+  slot.className = 'inv-slot';
+  const c = document.createElement('canvas'); c.width = c.height = 16;
+  const ctx = c.getContext('2d'); ctx.imageSmoothingEnabled = false;
+  if (item && item.id !== undefined) {
+    const tn = BLOCK_TILES[item.id] && BLOCK_TILES[item.id][2];
+    if (tn) { const t = TILES[tn]; ctx.drawImage(atlasCanvas, t.tx * TILE, t.ty * TILE, TILE, TILE, 0, 0, 16, 16); }
+  } else if (item && item.key) {
+    // Render a simple item glyph
+    drawItemGlyph(ctx, item.key);
+  } else if (item && item.weapon === 'sword') {
+    ctx.fillStyle = '#ddd'; ctx.fillRect(7, 2, 2, 8);
+    ctx.fillStyle = '#553'; ctx.fillRect(5, 10, 6, 2);
+    ctx.fillStyle = '#222'; ctx.fillRect(7, 12, 2, 3);
+  }
+  slot.appendChild(c);
+  if (count !== undefined) {
+    const ct = document.createElement('div'); ct.className = 'count'; ct.textContent = count; slot.appendChild(ct);
+  }
+  const lbl = document.createElement('div'); lbl.className = 'name';
+  lbl.textContent = item ? (item.name || item.key) : '';
+  slot.appendChild(lbl);
+  return slot;
+}
+function drawItemGlyph(ctx, key) {
+  ctx.clearRect(0, 0, 16, 16);
+  if (key === 'stick') { ctx.fillStyle = '#8B5A2B'; ctx.fillRect(3, 3, 2, 10); ctx.fillRect(11, 3, 2, 10); ctx.fillStyle = '#6B4220'; ctx.fillRect(5, 8, 6, 2); }
+  else if (key === 'apple') { ctx.fillStyle = '#d02020'; ctx.beginPath(); ctx.arc(8, 9, 5, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#3a7030'; ctx.fillRect(8, 2, 2, 4); }
+  else if (key === 'pork') { ctx.fillStyle = '#f0a0a0'; ctx.fillRect(3, 5, 10, 7); ctx.fillStyle = '#fff'; ctx.fillRect(4, 6, 8, 2); }
+  else if (key === 'beef') { ctx.fillStyle = '#aa3322'; ctx.fillRect(3, 5, 10, 7); ctx.fillStyle = '#ddaa88'; ctx.fillRect(4, 6, 8, 2); }
+  else if (key === 'bone') { ctx.fillStyle = '#eee'; ctx.fillRect(3, 7, 10, 2); ctx.fillRect(2, 5, 3, 6); ctx.fillRect(11, 5, 3, 6); }
+  else if (key === 'rotten') { ctx.fillStyle = '#557030'; ctx.fillRect(3, 5, 10, 7); ctx.fillStyle = '#334020'; ctx.fillRect(5, 7, 2, 2); ctx.fillRect(9, 8, 2, 2); }
+  else if (key === 'coal') { ctx.fillStyle = '#1a1a1a'; ctx.fillRect(3, 4, 10, 9); ctx.fillStyle = '#555'; ctx.fillRect(5, 6, 2, 2); }
+  else if (key === 'iron_ingot') { ctx.fillStyle = '#ccc'; ctx.fillRect(4, 5, 8, 6); ctx.fillStyle = '#888'; ctx.fillRect(4, 5, 8, 1); }
+  else if (key === 'gold_ingot') { ctx.fillStyle = '#f0d040'; ctx.fillRect(4, 5, 8, 6); ctx.fillStyle = '#aa8020'; ctx.fillRect(4, 5, 8, 1); }
+  else if (key === 'bread') { ctx.fillStyle = '#cca060'; ctx.fillRect(2, 5, 12, 7); ctx.fillStyle = '#8a6030'; ctx.fillRect(2, 5, 12, 1); }
+  else if (key === 'wheat') { ctx.fillStyle = '#d0a040'; ctx.fillRect(7, 3, 2, 10); ctx.fillStyle = '#ffd060'; ctx.fillRect(5, 5, 6, 2); ctx.fillRect(5, 8, 6, 2); }
+}
+function renderInventory() {
+  const blocksEl = document.getElementById('invBlocks');
+  const itemsEl = document.getElementById('invItems');
+  blocksEl.innerHTML = ''; itemsEl.innerHTML = '';
+  for (const b of HOTBAR) {
+    const count = player.inventory['b' + b.id];
+    const el = makeSlotEl(b, count);
+    el.addEventListener('click', () => {
+      // Find this block in HOTBAR_FULL and select that slot
+      const idx = HOTBAR_FULL.findIndex(x => x.id === b.id);
+      if (idx >= 0) { selectedSlot = idx; updateHotbar(); }
+      toggleInventory();
+    });
+    blocksEl.appendChild(el);
+  }
+  // Sword
+  const sw = HOTBAR_FULL[HOTBAR_FULL.length - 1];
+  const swEl = makeSlotEl(sw);
+  swEl.addEventListener('click', () => { selectedSlot = HOTBAR_FULL.length - 1; updateHotbar(); toggleInventory(); });
+  blocksEl.appendChild(swEl);
+  for (const k in ITEMS) {
+    const item = ITEMS[k];
+    const count = player.inventory['i' + item.key] || 0;
+    const el = makeSlotEl(item, count);
+    if (item.food) {
+      el.title = 'Click to eat';
+      el.addEventListener('click', () => { if (eatItem(item.key)) renderInventory(); });
+    }
+    itemsEl.appendChild(el);
+  }
+}
+invModal.addEventListener('click', (e) => { if (e.target === invModal) toggleInventory(); });
+craftModal.addEventListener('click', (e) => { if (e.target === craftModal) toggleCrafting(); });
+
+// ============== Crafting ==============
+// Recipe: { in: [[item, count], ...], out: [item, count] }
+function rIn(item, n) { return [item, n]; }
+const RECIPES = [
+  { in: [['b' + BLOCKS.WOOD.id, 1]], out: ['b' + BLOCKS.PLANK.id, 4], label: 'Wood → 4 Planks' },
+  { in: [['b' + BLOCKS.PLANK.id, 2]], out: ['i' + ITEMS.STICK.key, 4], label: '2 Planks → 4 Sticks' },
+  { in: [['b' + BLOCKS.PLANK.id, 4]], out: ['b' + BLOCKS.CRAFTBL.id, 1], label: '4 Planks → Crafting Table' },
+  { in: [['b' + BLOCKS.COBBLE.id, 8]], out: ['b' + BLOCKS.FURNACE.id, 1], label: '8 Cobble → Furnace' },
+  { in: [['b' + BLOCKS.PLANK.id, 6]], out: ['b' + BLOCKS.BOOKSHF.id, 1], label: '6 Planks → Bookshelf' },
+  { in: [['b' + BLOCKS.PLANK.id, 3], ['i' + ITEMS.STICK.key, 2]], out: ['b' + BLOCKS.BED.id, 1], label: '3 Planks + 2 Sticks → Bed' },
+  { in: [['i' + ITEMS.WHEAT.key, 3]], out: ['i' + ITEMS.BREAD.key, 1], label: '3 Wheat → Bread' },
+  { in: [['i' + ITEMS.IRON_INGOT.key, 9]], out: ['b' + BLOCKS.IRON.id, 1], label: '9 Iron Ingots → Iron Block' },
+  { in: [['i' + ITEMS.GOLD_INGOT.key, 9]], out: ['b' + BLOCKS.GOLD.id, 1], label: '9 Gold Ingots → Gold Block' },
+  { in: [['b' + BLOCKS.STONE.id, 4]], out: ['b' + BLOCKS.BRICK.id, 4], label: '4 Stone → 4 Brick' },
+];
+function lookupKey(k) {
+  if (k.startsWith('b')) return BLOCK_BY_ID[parseInt(k.slice(1))];
+  if (k.startsWith('i')) return ITEMS_BY_KEY[k.slice(1)];
+}
+function renderCrafting() {
+  const list = document.getElementById('craftList');
+  list.innerHTML = '';
+  for (const recipe of RECIPES) {
+    const row = document.createElement('div');
+    row.className = 'craft-row';
+    const ing = document.createElement('div'); ing.className = 'ingredients';
+    let can = true;
+    for (const [k, c] of recipe.in) {
+      const item = lookupKey(k);
+      const have = player.inventory[k] || 0;
+      if (have < c) can = false;
+      const el = makeSlotEl(item, c);
+      const haveLabel = document.createElement('div');
+      haveLabel.style.cssText = 'font-size:10px;color:' + (have >= c ? '#7f7' : '#f77');
+      haveLabel.textContent = `(${have}/${c})`;
+      el.appendChild(haveLabel);
+      ing.appendChild(el);
+    }
+    row.appendChild(ing);
+    const arrow = document.createElement('div'); arrow.className = 'arrow'; arrow.textContent = '→'; row.appendChild(arrow);
+    const outItem = lookupKey(recipe.out[0]);
+    row.appendChild(makeSlotEl(outItem, recipe.out[1]));
+    const label = document.createElement('div'); label.className = 'label'; label.textContent = recipe.label; row.appendChild(label);
+    const btn = document.createElement('button'); btn.textContent = 'Craft'; btn.disabled = !can;
+    btn.addEventListener('click', () => {
+      for (const [k, c] of recipe.in) {
+        player.inventory[k] -= c;
+        if (player.inventory[k] <= 0) delete player.inventory[k];
+      }
+      const ok = recipe.out[0];
+      player.inventory[ok] = (player.inventory[ok] || 0) + recipe.out[1];
+      showToast('Crafted ' + (lookupKey(ok).name || ok));
+      renderCrafting();
+    });
+    row.appendChild(btn);
+    list.appendChild(row);
+  }
+}
+
 // ============== Save / Load ==============
 const saveStatus = document.getElementById('saveStatus');
 function gameState() {
@@ -1524,7 +1848,7 @@ function gameState() {
   for (const [k, v] of world.modifiedBlocks) mods[k] = v;
   return {
     seed: WORLD_SEED, time: timeOfDay,
-    player: { x: player.pos.x, y: player.pos.y, z: player.pos.z, yaw: player.yaw, pitch: player.pitch, hp: player.hp },
+    player: { x: player.pos.x, y: player.pos.y, z: player.pos.z, yaw: player.yaw, pitch: player.pitch, hp: player.hp, hunger: player.hunger, inventory: player.inventory },
     modifiedBlocks: mods,
     boats: boats.map(b => ({ x: b.pos.x, y: b.pos.y, z: b.pos.z, yaw: b.yaw })),
   };
@@ -1547,6 +1871,8 @@ function loadGame() {
     player.pos.set(data.player.x, data.player.y, data.player.z);
     player.yaw = data.player.yaw; player.pitch = data.player.pitch;
     player.hp = data.player.hp || player.maxHp;
+    player.hunger = data.player.hunger != null ? data.player.hunger : player.maxHunger;
+    player.inventory = data.player.inventory || {};
     for (const [k, id] of Object.entries(data.modifiedBlocks || {})) {
       const [x, y, z] = k.split(',').map(Number);
       world.modifiedBlocks.set(k, id);
@@ -1611,6 +1937,32 @@ function animate(now) {
 
   if (settings.cheatInfiniteHP && player.hp < player.maxHp) player.hp = Math.min(player.maxHp, player.hp + dt * 2);
 
+  // Hunger: drain exhaustion based on activity
+  const moving = Math.hypot(player.vel.x, player.vel.z) > 0.5;
+  const sprint = moving && (keys['ShiftLeft'] || keys['ShiftRight']);
+  if (!player.fly && !player.boat) {
+    applyExhaustion(dt * (sprint ? 0.4 : moving ? 0.1 : 0.02));
+  }
+  // Natural regen if well-fed
+  if (player.hunger >= 18 && player.hp < player.maxHp) {
+    player.hp = Math.min(player.maxHp, player.hp + dt * 0.5);
+    applyExhaustion(dt * 0.6);
+  }
+  // Starvation damage
+  if (player.hunger <= 0 && player.hp > 1 && !settings.cheatGodMode) {
+    player.hp = Math.max(1, player.hp - dt * 0.5);
+  }
+
+  // Auto-eat lowest-tier food when hungry
+  if (keys['KeyG']) {
+    if (eatItem('apple') || eatItem('bread') || eatItem('pork') || eatItem('beef') || eatItem('rotten')) {
+      keys['KeyG'] = false;
+    }
+  }
+
+  // Toast timer
+  if (toastTimer > 0) { toastTimer -= dt; if (toastTimer <= 0) document.getElementById('toast').classList.remove('show'); }
+
   player.hurtTime = Math.max(0, player.hurtTime - dt);
   player.attackTime = Math.max(0, player.attackTime - dt);
   updateHand();
@@ -1650,6 +2002,8 @@ if (auto) {
     player.pos.set(data.player.x, data.player.y, data.player.z);
     player.yaw = data.player.yaw; player.pitch = data.player.pitch;
     player.hp = data.player.hp || player.maxHp;
+    player.hunger = data.player.hunger != null ? data.player.hunger : player.maxHunger;
+    player.inventory = data.player.inventory || {};
     for (const [k, id] of Object.entries(data.modifiedBlocks || {})) {
       const [x, y, z] = k.split(',').map(Number);
       world.modifiedBlocks.set(k, id);
