@@ -3035,11 +3035,11 @@ function renderInventory() {
       const payload = JSON.stringify({ type: 'i', key: item.key });
       el.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', payload); });
       if (item.vape) {
-        el.title = 'Click to vape, Shift+click to put in hotbar';
+        el.title = 'Click to put in hotbar (use V or drag to vape)';
         el.addEventListener('click', (e) => {
           if (invCreativeShowAll && count === 0) player.inventory['i' + item.key] = 1;
-          if (e.shiftKey) { player.hotbarLayout[selectedSlot] = { type: 'i', key: item.key }; renderInventory(); updateHotbar(); }
-          else if (puffVape(item)) renderInventory();
+          player.hotbarLayout[selectedSlot] = { type: 'i', key: item.key };
+          renderInventory(); updateHotbar();
         });
       } else if (item.food) {
         el.title = 'Click to eat, Shift+click to put in hotbar';
