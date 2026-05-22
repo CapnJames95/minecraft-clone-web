@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>Minecraft Clone</title>
+<title>VapeCraft</title>
 <style>
   html, body { margin: 0; padding: 0; overflow: hidden; background: #87CEEB; font-family: 'Courier New', monospace; color: #fff; }
   canvas { display: block; }
@@ -78,6 +78,12 @@
   <h2>Crafting (C to close)</h2>
   <div id="craftList"></div>
 </div></div>
+<div id="furnaceModal" class="hidden"><div class="panel" style="border-color:#aa6020">
+  <h2 style="color:#ff8030">Furnace</h2>
+  <p style="font-size:12px;opacity:0.7">Need fuel (Coal or Plank/Wood) to smelt. Click an item to smelt.</p>
+  <div id="furnaceList"></div>
+  <button id="furnaceClose" style="margin-top:8px">Close</button>
+</div></div>
 <div id="vapeModal" class="hidden"><div class="panel" style="border-color:#ff00ff">
   <h2 id="vapeTitle" style="color:#ff80ff;text-shadow:0 0 8px #ff00ff">VAPE SHOP</h2>
   <p id="vapeFlavor" style="font-size:13px;color:#ffe040"></p>
@@ -91,8 +97,54 @@
   <p id="diaText" style="font-size:14px;line-height:1.5;min-height:60px"></p>
   <div id="diaChoices" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"></div>
 </div></div>
-<div id="overlay">
-  <h1>Minecraft Clone</h1>
+<div id="mainMenu">
+  <div style="text-align:center;padding:30px">
+    <h1 style="font-size:64px;margin:0 0 4px;color:#ff80ff;text-shadow:0 0 20px #ff00ff,0 0 4px #fff;letter-spacing:2px">VAPECRAFT</h1>
+    <p style="font-size:14px;color:#aaa;margin:0 0 24px">A browser Minecraft clone (with vapes)</p>
+    <div id="mmHome">
+      <button class="mm-btn" id="mmPlay">▶ Play Current World</button><br>
+      <button class="mm-btn" id="mmWorlds">📂 Singleplayer Worlds</button><br>
+      <button class="mm-btn" id="mmNew">✚ Create New World</button><br>
+      <button class="mm-btn" id="mmOptions">⚙ Settings</button>
+    </div>
+    <div id="mmWorldsPane" class="hidden" style="max-height:60vh;overflow-y:auto;width:520px;margin:0 auto">
+      <h2>Saved Worlds</h2>
+      <div id="mmWorldList" style="text-align:left"></div>
+      <button class="mm-btn mm-small" data-back="mmHome">← Back</button>
+    </div>
+    <div id="mmNewPane" class="hidden" style="width:520px;margin:0 auto;text-align:left">
+      <h2>Create New World</h2>
+      <label style="display:block;margin:8px 0">World name: <input type="text" id="mmName" value="My World" style="background:#111;color:#fff;border:1px solid #555;padding:6px;width:200px"></label>
+      <label style="display:block;margin:8px 0">Seed (blank = random): <input type="text" id="mmSeed" placeholder="any number" style="background:#111;color:#fff;border:1px solid #555;padding:6px;width:200px"></label>
+      <label style="display:block;margin:8px 0">World type:
+        <select id="mmType" style="background:#111;color:#fff;border:1px solid #555;padding:6px">
+          <option value="default">Default</option>
+          <option value="flat">Flat / Superflat</option>
+          <option value="amplified">Amplified (tall mountains)</option>
+          <option value="largebiomes">Large Biomes</option>
+        </select>
+      </label>
+      <label style="display:block;margin:8px 0">Gamemode:
+        <select id="mmGamemode" style="background:#111;color:#fff;border:1px solid #555;padding:6px">
+          <option value="creative">Creative</option>
+          <option value="survival">Survival</option>
+        </select>
+      </label>
+      <button class="mm-btn" id="mmCreate">Create World</button>
+      <button class="mm-btn mm-small" data-back="mmHome">← Back</button>
+    </div>
+  </div>
+</div>
+<style>
+  #mainMenu { position:absolute;inset:0;background:linear-gradient(135deg,#1a0a2a 0%,#0a0a1a 100%);display:flex;align-items:center;justify-content:center;z-index:100 }
+  #mainMenu .mm-btn { background:#3a1a4a;color:#fff;border:2px solid #ff00ff;padding:12px 24px;margin:6px;font-family:inherit;font-size:16px;cursor:pointer;min-width:240px;transition:all 0.15s }
+  #mainMenu .mm-btn:hover { background:#5a2a6a;box-shadow:0 0 12px #ff00ff }
+  #mainMenu .mm-btn.mm-small { min-width:120px;padding:8px 16px;font-size:13px }
+  #mainMenu .world-entry { background:#222;border:1px solid #555;padding:8px 12px;margin:4px 0;display:flex;justify-content:space-between;align-items:center }
+  #mainMenu .world-entry button { background:#444;color:#fff;border:1px solid #666;padding:4px 10px;font-family:inherit;cursor:pointer;margin-left:4px }
+</style>
+<div id="overlay" class="hidden">
+  <h1>VapeCraft</h1>
   <p>Click to play</p>
   <p>WASD = Move &nbsp; Space = Jump/Swim &nbsp; Shift = Sprint</p>
   <p>Mouse = Look &nbsp; Left = Break/Attack &nbsp; Right = Place/Ride</p>
@@ -123,13 +175,24 @@
       <label><input type="checkbox" id="mapShowBoats" checked> Show boats on map</label>
     </div>
     <div class="tab-body hidden" id="tab-cheats">
+      <label>Gamemode:
+        <select id="gamemode" style="background:#111;color:#fff;border:1px solid #555;padding:4px">
+          <option value="creative">Creative</option>
+          <option value="survival">Survival</option>
+        </select>
+      </label>
       <label><input type="checkbox" id="cheatVillageArrow"> Show arrow to nearest village</label>
+      <label><input type="checkbox" id="cheatVapeArrow"> Show arrow to nearest vape shop</label>
+      <label><input type="checkbox" id="cheatDodgyArrow"> Show arrow to nearest dodgy shop</label>
       <label><input type="checkbox" id="cheatGodMode"> God mode (invincible)</label>
       <label><input type="checkbox" id="cheatNoclip"> Noclip (no collision)</label>
       <label><input type="checkbox" id="cheatInfiniteHP" checked> Auto-regen HP</label>
       <label>Time of day: <input type="range" id="cheatTime" min="0" max="1" step="0.01" value="0.25"></label>
       <button id="cheatTeleportVillage">Teleport to nearest village</button>
+      <button id="cheatTeleportVape">Teleport to nearest vape shop</button>
+      <button id="cheatTeleportDodgy">Teleport to nearest dodgy shop</button>
       <button id="cheatHealNow">Heal</button>
+      <button id="cheatGiveAll">Give all items/blocks</button>
     </div>
     <div class="tab-body hidden" id="tab-save">
       <label>Save slot name: <input type="text" id="saveSlot" value="world1"></label>
@@ -190,8 +253,11 @@ class SimplexNoise {
 const settings = {
   sensitivity: 0.0025, renderDist: 4, fov: 75, dayNightOn: true, dayLength: 240,
   mapShown: false, mapZoom: 2, mapShowMobs: true, mapShowBoats: true,
-  cheatVillageArrow: false, cheatGodMode: false, cheatNoclip: false, cheatInfiniteHP: true,
+  cheatVillageArrow: false, cheatVapeArrow: false, cheatDodgyArrow: false,
+  cheatGodMode: false, cheatNoclip: false, cheatInfiniteHP: true,
   cheatTime: 0.25,
+  gamemode: 'creative', // 'creative' | 'survival'
+  worldType: 'default', // 'default' | 'flat' | 'amplified' | 'largebiomes'
 };
 function loadSettings() {
   try {
@@ -277,6 +343,7 @@ const BLOCKS = {
   GRAVEL:      { id: 70, name: 'Gravel',       solid: true },
   PODZOL:      { id: 71, name: 'Podzol',       solid: true },
   MYCELIUM:    { id: 72, name: 'Mycelium',     solid: true },
+  MENU_SIGN:   { id: 73, name: 'Flavor Menu',  solid: true },
 };
 const BLOCK_BY_ID = {};
 for (const k in BLOCKS) BLOCK_BY_ID[BLOCKS[k].id] = BLOCKS[k];
@@ -454,6 +521,17 @@ regTile('wool_black', (ctx) => { noiseFill(ctx, [30, 30, 30], 12); });
 regTile('gravel', (ctx) => { noiseFill(ctx, [130, 125, 120], 30); for (let i = 0; i < 10; i++) { ctx.fillStyle = '#777'; ctx.fillRect(Math.random()*TILE|0, Math.random()*TILE|0, 2, 1); } });
 regTile('podzol_top', (ctx) => { noiseFill(ctx, [90, 60, 40], 20); for (let i = 0; i < 10; i++) { ctx.fillStyle = '#3a2a1a'; ctx.fillRect(Math.random()*TILE|0, Math.random()*TILE|0, 1, 1); } });
 regTile('mycelium_top', (ctx) => { noiseFill(ctx, [120, 90, 130], 18); for (let i = 0; i < 12; i++) { ctx.fillStyle = '#ffaaff'; ctx.fillRect(Math.random()*TILE|0, Math.random()*TILE|0, 1, 1); } });
+// Vape shop flavor menu sign
+regTile('menu_sign', (ctx) => {
+  ctx.fillStyle = '#1a0a2a'; ctx.fillRect(0, 0, TILE, TILE);
+  ctx.fillStyle = '#ff00ff'; ctx.fillRect(0, 0, TILE, 1); ctx.fillRect(0, TILE-1, TILE, 1);
+  ctx.fillStyle = '#ffe040'; ctx.font = 'bold 4px sans-serif';
+  ctx.fillText('MENU', 2, 5);
+  ctx.fillStyle = '#88ffff'; ctx.font = '3px sans-serif';
+  ctx.fillText('Mango', 1, 9);
+  ctx.fillText('Mint', 1, 12);
+  ctx.fillText('Berry', 1, 15);
+});
 
 // face order: +x, -x, +y(top), -y(bottom), +z(front), -z(back)
 const BLOCK_TILES = {
@@ -527,6 +605,7 @@ const BLOCK_TILES = {
   [BLOCKS.GRAVEL.id]: Array(6).fill('gravel'),
   [BLOCKS.PODZOL.id]: ['dirt','dirt','podzol_top','dirt','dirt','dirt'],
   [BLOCKS.MYCELIUM.id]: ['dirt','dirt','mycelium_top','dirt','dirt','dirt'],
+  [BLOCKS.MENU_SIGN.id]: Array(6).fill('menu_sign'),
 };
 
 const atlasTexture = new THREE.CanvasTexture(atlasCanvas);
@@ -567,10 +646,12 @@ function initNoise(seed) {
 initNoise(WORLD_SEED);
 
 function biomeAt(x, z) {
+  if (settings.worldType === 'flat') return BIOME.PLAINS;
+  const freq = settings.worldType === 'largebiomes' ? 0.003 : 0.008;
   const ocean = oceanNoise.noise2D(x * 0.006, z * 0.006);
   if (ocean < -0.1) return BIOME.OCEAN;
-  const t = tempNoise.noise2D(x * 0.008, z * 0.008); // -1..1
-  const h = humNoise.noise2D(x * 0.008 + 100, z * 0.008 + 100);
+  const t = tempNoise.noise2D(x * freq, z * freq);
+  const h = humNoise.noise2D(x * freq + 100, z * freq + 100);
   const m = noise2.noise2D(x * 0.005, z * 0.005);
   if (m > 0.5) return BIOME.MOUNTAIN;
   if (t > 0.4 && h < 0) return BIOME.DESERT;
@@ -580,15 +661,17 @@ function biomeAt(x, z) {
 }
 
 function heightAt(x, z) {
+  if (settings.worldType === 'flat') return SEA_LEVEL + 4;
   const o = oceanNoise.noise2D(x * 0.006, z * 0.006);
   const land = Math.max(0, o + 0.15);
-  let base = SEA_LEVEL - 6 + land * 24;
+  const amp = settings.worldType === 'amplified' ? 2.0 : 1.0;
+  let base = SEA_LEVEL - 6 + land * 24 * amp;
   const biome = biomeAt(x, z);
-  if (biome === BIOME.MOUNTAIN) base += 14 + noise2.noise2D(x * 0.01, z * 0.01) * 8;
+  if (biome === BIOME.MOUNTAIN) base += (14 + noise2.noise2D(x * 0.01, z * 0.01) * 8) * amp;
   if (biome === BIOME.OCEAN) base = SEA_LEVEL - 8 + o * 4;
   const n = noise.noise2D(x * 0.02, z * 0.02);
   const m = noise2.noise2D(x * 0.05, z * 0.05);
-  let h = Math.floor(base + n * 5 + m * 2);
+  let h = Math.floor(base + n * 5 * amp + m * 2 * amp);
   if (h > SEA_LEVEL && biome !== BIOME.OCEAN) {
     const r = Math.abs(riverNoise.noise2D(x * 0.012, z * 0.012));
     if (r < 0.04) h = SEA_LEVEL - 2;
@@ -793,7 +876,7 @@ class Chunk {
     return { counterX: cx, counterY: baseY + 1, counterZ: cz };
   }
   buildVapeShop(lx, lz, heights) {
-    const W = 7, D = 6, H = 4;
+    const W = 9, D = 7, H = 5;
     let sum = 0, n = 0;
     for (let dx = 0; dx < W; dx++) for (let dz = 0; dz < D; dz++) {
       const xx = lx + dx, zz = lz + dz;
@@ -802,35 +885,75 @@ class Chunk {
     }
     const baseY = Math.round(sum / n);
     if (baseY < SEA_LEVEL) return null;
+    // Clear interior + foundation
+    for (let dx = -1; dx < W + 1; dx++) for (let dz = -1; dz < D + 1; dz++) {
+      const y = baseY;
+      if (y < 0 || y >= CHUNK_H) continue;
+      if (lx + dx < 0 || lx + dx >= CHUNK_W || lz + dz < 0 || lz + dz >= CHUNK_W) continue;
+      this.blocks[this.idx(lx + dx, y, lz + dz)] = BLOCKS.OBSID.id;
+    }
+    // Build walls and roof
     for (let dx = 0; dx < W; dx++) for (let dz = 0; dz < D; dz++) {
       for (let dy = 0; dy < H + 1; dy++) {
         const y = baseY + dy;
         if (y < 0 || y >= CHUNK_H) continue;
         const wall = (dx === 0 || dx === W - 1 || dz === 0 || dz === D - 1);
-        let id = 0;
+        let id;
         if (dy === 0) id = BLOCKS.OBSID.id;
         else if (dy === H) id = (dx + dz) % 2 === 0 ? BLOCKS.NEONPNK.id : BLOCKS.NEONCYN.id;
         else if (wall) {
           // Front wall has windows
-          if (dz === D - 1 && (dx > 1 && dx < W - 2) && dy === 2) id = BLOCKS.GLASS.id;
-          else id = (dy % 2 === 0) ? BLOCKS.NEONPNK.id : BLOCKS.NEONCYN.id;
-        }
+          if (dz === D - 1 && (dx === 2 || dx === W - 3) && (dy === 2 || dy === 3)) id = BLOCKS.GLASS.id;
+          // Side wall windows
+          else if ((dx === 0 || dx === W - 1) && dz > 1 && dz < D - 2 && (dy === 2 || dy === 3)) id = BLOCKS.GLASS.id;
+          else id = (dy === 1) ? BLOCKS.OBSID.id : ((dy + dx) % 2 === 0 ? BLOCKS.NEONPNK.id : BLOCKS.NEONCYN.id);
+        } else id = 0;
         this.blocks[this.idx(lx + dx, y, lz + dz)] = id;
       }
     }
-    // Doorway
+    // Wider doorway
     const doorX = lx + Math.floor(W / 2);
-    this.blocks[this.idx(doorX, baseY + 1, lz + D - 1)] = 0;
-    this.blocks[this.idx(doorX, baseY + 2, lz + D - 1)] = 0;
-    // Counter row at back
+    for (const dx of [doorX - 1, doorX, doorX + 1]) {
+      this.blocks[this.idx(dx, baseY + 1, lz + D - 1)] = 0;
+      this.blocks[this.idx(dx, baseY + 2, lz + D - 1)] = 0;
+    }
+    // Counter row at back (z = 1) — leave middle slot for shopkeeper to stand behind
     const counterZ = lz + 1;
     for (let dx = 1; dx < W - 1; dx++) {
       this.blocks[this.idx(lx + dx, baseY + 1, counterZ)] = BLOCKS.VAPECNT.id;
     }
-    // Shelves of "vape" displays (use neon blocks stacked)
-    this.blocks[this.idx(lx + 1, baseY + 2, lz + 1)] = BLOCKS.NEONPNK.id;
-    this.blocks[this.idx(lx + W - 2, baseY + 2, lz + 1)] = BLOCKS.NEONCYN.id;
-    return { counterX: lx + Math.floor(W / 2), counterY: baseY + 1, counterZ: counterZ };
+    // Behind counter: 2-tall glass display cabinet wall full of vapes (placed at z=0 actually no, that's the back wall)
+    // Use the row at counterZ+1? No — leave space for the shopkeeper. Put glass column displays at the side walls instead.
+    // Glass display columns on left wall
+    for (let dz = 2; dz < D - 1; dz += 2) {
+      this.blocks[this.idx(lx + 1, baseY + 1, lz + dz)] = BLOCKS.GLASS.id;
+      this.blocks[this.idx(lx + 1, baseY + 2, lz + dz)] = BLOCKS.GLASS.id;
+      this.blocks[this.idx(lx + 1, baseY + 3, lz + dz)] = BLOCKS.GLASS.id;
+      // Inside the glass column: a vape colored neon block as the "display"
+      this.blocks[this.idx(lx + 1, baseY + 2, lz + dz)] = BLOCKS.GLASS.id;
+    }
+    for (let dz = 2; dz < D - 1; dz += 2) {
+      this.blocks[this.idx(lx + W - 2, baseY + 1, lz + dz)] = BLOCKS.GLASS.id;
+      this.blocks[this.idx(lx + W - 2, baseY + 2, lz + dz)] = BLOCKS.GLASS.id;
+      this.blocks[this.idx(lx + W - 2, baseY + 3, lz + dz)] = BLOCKS.GLASS.id;
+    }
+    // Flavor menu signs on the back wall above counter
+    for (const dx of [1, 3, 5, 7]) {
+      const x = lx + dx;
+      if (dx < W - 1) this.blocks[this.idx(x, baseY + 3, lz)] = BLOCKS.MENU_SIGN.id;
+    }
+    // Pendant lights (jack-o-lanterns at corners under roof for warm glow look)
+    this.blocks[this.idx(lx + 1, baseY + H - 1, lz + 1)] = BLOCKS.JACK_LANTERN.id;
+    this.blocks[this.idx(lx + W - 2, baseY + H - 1, lz + 1)] = BLOCKS.JACK_LANTERN.id;
+    // Carpet (use red wool on the customer side)
+    for (let dx = 2; dx < W - 2; dx++) for (let dz = 3; dz < D - 1; dz++) {
+      // Skip floor placement on counter row
+      this.blocks[this.idx(lx + dx, baseY, lz + dz)] = BLOCKS.RED_WOOL.id;
+    }
+    return { counterX: lx + Math.floor(W / 2), counterY: baseY + 1, counterZ: counterZ, displayPositions: [
+      { x: lx + 1, y: baseY + 2, z: lz + 2 }, { x: lx + 1, y: baseY + 2, z: lz + 4 },
+      { x: lx + W - 2, y: baseY + 2, z: lz + 2 }, { x: lx + W - 2, y: baseY + 2, z: lz + 4 },
+    ] };
   }
   placeTree(x, h, z, r) {
     const th = 4 + (r % 3);
@@ -846,7 +969,7 @@ class Chunk {
         }
   }
   buildHut(lx, lz, heights) {
-    const W = 6, D = 6, H = 4;
+    const W = 7, D = 7, H = 4;
     let sum = 0, n = 0;
     for (let dx = 0; dx < W; dx++) for (let dz = 0; dz < D; dz++) {
       const xx = lx + dx, zz = lz + dz;
@@ -855,26 +978,63 @@ class Chunk {
     }
     const baseY = Math.round(sum / n);
     if (baseY < SEA_LEVEL) return;
+    // Cobble foundation extending 1 block out
+    for (let dx = -1; dx < W + 1; dx++) for (let dz = -1; dz < D + 1; dz++) {
+      if (lx + dx < 0 || lx + dx >= CHUNK_W || lz + dz < 0 || lz + dz >= CHUNK_W) continue;
+      this.blocks[this.idx(lx + dx, baseY, lz + dz)] = BLOCKS.COBBLE.id;
+    }
+    // Walls + floor
     for (let dx = 0; dx < W; dx++) for (let dz = 0; dz < D; dz++) {
       for (let dy = 0; dy < H + 1; dy++) {
         const y = baseY + dy;
         if (y < 0 || y >= CHUNK_H) continue;
         const wall = (dx === 0 || dx === W - 1 || dz === 0 || dz === D - 1);
+        const corner = ((dx === 0 || dx === W - 1) && (dz === 0 || dz === D - 1));
         let id = 0;
-        if (dy === 0) id = BLOCKS.COBBLE.id;
-        else if (dy === H || wall) id = BLOCKS.PLANK.id;
-        else id = 0;
+        if (dy === 0) id = BLOCKS.SPRUCE_PLANK.id;
+        else if (dy === H) id = BLOCKS.SPRUCE_LOG.id; // log roof
+        else if (wall) {
+          if (corner) id = BLOCKS.SPRUCE_LOG.id; // corner posts
+          else if ((dy === 2 || dy === 3) && ((dz === 0 || dz === D - 1) && (dx === 1 || dx === W - 2))) id = BLOCKS.GLASS.id;
+          else if ((dy === 2 || dy === 3) && ((dx === 0 || dx === W - 1) && (dz === 1 || dz === D - 2))) id = BLOCKS.GLASS.id;
+          else id = BLOCKS.PLANK.id;
+        } else id = 0;
         this.blocks[this.idx(lx + dx, y, lz + dz)] = id;
       }
     }
+    // Pitched-style roof overhang using log row above
+    for (let dx = -1; dx < W + 1; dx++) for (let dz = -1; dz < D + 1; dz++) {
+      if (lx + dx < 0 || lx + dx >= CHUNK_W || lz + dz < 0 || lz + dz >= CHUNK_W) continue;
+      if (dx === -1 || dx === W || dz === -1 || dz === D) {
+        this.blocks[this.idx(lx + dx, baseY + H, lz + dz)] = BLOCKS.SPRUCE_LOG.id;
+      }
+    }
+    // Doorway with torches
     const doorX = lx + Math.floor(W / 2);
     this.blocks[this.idx(doorX, baseY + 1, lz + D - 1)] = 0;
     this.blocks[this.idx(doorX, baseY + 2, lz + D - 1)] = 0;
-    this.blocks[this.idx(doorX, baseY + 2, lz)] = BLOCKS.GLASS.id;
+    this.blocks[this.idx(doorX - 1, baseY + 3, lz + D - 1)] = BLOCKS.TORCH.id;
+    this.blocks[this.idx(doorX + 1, baseY + 3, lz + D - 1)] = BLOCKS.TORCH.id;
+    // Chimney
+    const chimX = lx, chimZ = lz + Math.floor(D / 2);
+    for (let dy = 1; dy < H + 3; dy++) {
+      const y = baseY + dy;
+      if (y < CHUNK_H) this.blocks[this.idx(chimX, y, chimZ)] = BLOCKS.BRICK.id;
+    }
+    // Furniture
     this.blocks[this.idx(lx + 1, baseY + 1, lz + 1)] = BLOCKS.CRAFTBL.id;
     this.blocks[this.idx(lx + W - 2, baseY + 1, lz + 1)] = BLOCKS.FURNACE.id;
     this.blocks[this.idx(lx + 1, baseY + 1, lz + D - 2)] = BLOCKS.BED.id;
+    this.blocks[this.idx(lx + 2, baseY + 1, lz + D - 2)] = BLOCKS.BED.id;
     this.blocks[this.idx(lx + W - 2, baseY + 1, lz + D - 2)] = BLOCKS.BOOKSHF.id;
+    this.blocks[this.idx(lx + W - 3, baseY + 1, lz + D - 2)] = BLOCKS.BOOKSHF.id;
+    this.blocks[this.idx(lx + 1, baseY + 3, lz + 1)] = BLOCKS.TORCH.id;
+    this.blocks[this.idx(lx + W - 2, baseY + 3, lz + W - 2)] = BLOCKS.TORCH.id;
+    // Carpet
+    for (let dx = 1; dx < W - 1; dx++) for (let dz = 1; dz < D - 1; dz++) {
+      const id = this.blocks[this.idx(lx + dx, baseY + 1, lz + dz)];
+      if (id === 0) this.blocks[this.idx(lx + dx, baseY, lz + dz)] = (dx + dz) % 2 === 0 ? BLOCKS.WHITE_WOOL.id : BLOCKS.PLANK.id;
+    }
   }
   buildVillage(cx, cz, heights) {
     const offsets = [[-4, -4], [3, -3], [-3, 3], [4, 4]];
@@ -1426,6 +1586,7 @@ const player = {
   hasSword: true, hasBow: true,
   inventory: {}, // itemKey -> count
   exhaustion: 0,
+  vapeBuff: 0,
 };
 // Items (non-block consumables and materials)
 const ITEMS = {
@@ -1589,7 +1750,9 @@ document.addEventListener('pointerlockchange', () => {
       || !document.getElementById('invModal').classList.contains('hidden')
       || !document.getElementById('craftModal').classList.contains('hidden')
       || !document.getElementById('vapeModal').classList.contains('hidden')
-      || !document.getElementById('dialogueModal').classList.contains('hidden');
+      || !document.getElementById('dialogueModal').classList.contains('hidden')
+      || !document.getElementById('furnaceModal').classList.contains('hidden')
+      || !document.getElementById('mainMenu').classList.contains('hidden');
     if (!anyModalOpen) overlay.classList.remove('hidden');
   }
 });
@@ -1674,6 +1837,22 @@ document.addEventListener('mousedown', (e) => {
     if (blockId === BLOCKS.BED.id) { trySleep(); return; }
     // Crafting table opens crafting
     if (blockId === BLOCKS.CRAFTBL.id) { toggleCrafting(); return; }
+    // Furnace opens smelting
+    if (blockId === BLOCKS.FURNACE.id) { toggleFurnace(); return; }
+    // Chest gives a small bonus loot (simple: random items)
+    if (blockId === BLOCKS.CHEST.id) {
+      // Replace chest with a one-time loot
+      const drops = [
+        { item: ITEMS.IRON_INGOT, count: 1 + (Math.random() * 3 | 0) },
+        { item: ITEMS.COAL, count: 2 + (Math.random() * 3 | 0) },
+        { item: ITEMS.APPLE, count: 1 + (Math.random() * 2 | 0) },
+        { item: Math.random() < 0.5 ? ITEMS.DIAMOND : ITEMS.EMERALD, count: 1 },
+        { item: ITEMS.STRING, count: 2 },
+      ];
+      for (const d of drops) if (Math.random() < 0.7) addInv(d.item, d.count);
+      world.setBlock(hit.block.x, hit.block.y, hit.block.z, 0);
+      return;
+    }
     // Vape counter opens shop (find nearest shopkeeper to figure out vape vs dodgy)
     if (blockId === BLOCKS.VAPECNT.id) {
       let shopType = 'vape';
@@ -1692,6 +1871,13 @@ document.addEventListener('mousedown', (e) => {
       const minZ = Math.floor(player.pos.z - player.radius), maxZ = Math.floor(player.pos.z + player.radius);
       const minY = Math.floor(player.pos.y - player.height), maxY = Math.floor(player.pos.y);
       if (p.x >= minX && p.x <= maxX && p.z >= minZ && p.z <= maxZ && p.y >= minY && p.y <= maxY) return;
+      // Survival: must have block in inventory
+      if (settings.gamemode === 'survival') {
+        const k = 'b' + item.id;
+        if (!player.inventory[k] || player.inventory[k] <= 0) { showToast(`Out of ${item.name}`); return; }
+        player.inventory[k]--;
+        if (player.inventory[k] <= 0) delete player.inventory[k];
+      }
       world.setBlock(p.x, p.y, p.z, item.id);
     }
   }
@@ -1904,7 +2090,8 @@ function move(dt) {
     return;
   }
   const inW = inWater(player.pos.x, player.pos.y, player.pos.z);
-  const speed = inW ? 3 : ((keys['ShiftLeft'] || keys['ShiftRight']) ? 8 : 4.5);
+  const buff = player.vapeBuff > 0 ? 1.25 : 1;
+  const speed = inW ? 3 * buff : ((keys['ShiftLeft'] || keys['ShiftRight']) ? 8 * buff : 4.5 * buff);
   const fwd = new THREE.Vector3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
   const right = new THREE.Vector3(Math.cos(player.yaw), 0, -Math.sin(player.yaw));
   const wish = new THREE.Vector3();
@@ -2022,31 +2209,31 @@ function drawMinimap() {
       mapCtx.fillRect(W / 2 + dx - 2, H / 2 + dz - 1, 4, 2);
     }
   }
-  // Village arrow cheat
-  if (settings.cheatVillageArrow) {
-    const v = findNearestVillage();
-    if (v) {
-      const dx = v.x - px, dz = v.z - pz;
-      const onMapX = dx * zoom, onMapZ = dz * zoom;
-      if (Math.abs(onMapX) < W / 2 && Math.abs(onMapZ) < H / 2) {
-        mapCtx.fillStyle = '#ffe040'; mapCtx.strokeStyle = '#000';
-        mapCtx.beginPath(); mapCtx.arc(W / 2 + onMapX, H / 2 + onMapZ, 4, 0, Math.PI * 2);
-        mapCtx.fill(); mapCtx.stroke();
-      } else {
-        // Arrow at edge pointing to village
-        const ang = Math.atan2(dz, dx);
-        const ex = Math.cos(ang) * (W / 2 - 14), ez = Math.sin(ang) * (H / 2 - 14);
-        mapCtx.save();
-        mapCtx.translate(W / 2 + ex, H / 2 + ez);
-        mapCtx.rotate(ang + Math.PI / 2);
-        mapCtx.fillStyle = '#ffe040'; mapCtx.strokeStyle = '#000'; mapCtx.lineWidth = 1.5;
-        mapCtx.beginPath();
-        mapCtx.moveTo(0, -10); mapCtx.lineTo(7, 6); mapCtx.lineTo(-7, 6); mapCtx.closePath();
-        mapCtx.fill(); mapCtx.stroke();
-        mapCtx.restore();
-      }
+  // Arrow cheats
+  function drawArrow(target, color) {
+    if (!target) return;
+    const dx = target.x - px, dz = target.z - pz;
+    const onMapX = dx * zoom, onMapZ = dz * zoom;
+    if (Math.abs(onMapX) < W / 2 && Math.abs(onMapZ) < H / 2) {
+      mapCtx.fillStyle = color; mapCtx.strokeStyle = '#000';
+      mapCtx.beginPath(); mapCtx.arc(W / 2 + onMapX, H / 2 + onMapZ, 4, 0, Math.PI * 2);
+      mapCtx.fill(); mapCtx.stroke();
+    } else {
+      const ang = Math.atan2(dz, dx);
+      const ex = Math.cos(ang) * (W / 2 - 14), ez = Math.sin(ang) * (H / 2 - 14);
+      mapCtx.save();
+      mapCtx.translate(W / 2 + ex, H / 2 + ez);
+      mapCtx.rotate(ang + Math.PI / 2);
+      mapCtx.fillStyle = color; mapCtx.strokeStyle = '#000'; mapCtx.lineWidth = 1.5;
+      mapCtx.beginPath();
+      mapCtx.moveTo(0, -10); mapCtx.lineTo(7, 6); mapCtx.lineTo(-7, 6); mapCtx.closePath();
+      mapCtx.fill(); mapCtx.stroke();
+      mapCtx.restore();
     }
   }
+  if (settings.cheatVillageArrow) drawArrow(findNearestVillage(), '#ffe040');
+  if (settings.cheatVapeArrow) drawArrow(findNearestVapeShop(), '#ff40ff');
+  if (settings.cheatDodgyArrow) drawArrow(findNearestDodgyShop(), '#aaff60');
 }
 function findNearestVillage() {
   // Scan registered villages (from chunks already generated)
@@ -2111,6 +2298,9 @@ bind('mapZoom', 'mapZoom', (v) => parseInt(v));
 bind('mapShowMobs', 'mapShowMobs');
 bind('mapShowBoats', 'mapShowBoats');
 bind('cheatVillageArrow', 'cheatVillageArrow');
+bind('cheatVapeArrow', 'cheatVapeArrow');
+bind('cheatDodgyArrow', 'cheatDodgyArrow');
+bind('gamemode', 'gamemode');
 bind('cheatGodMode', 'cheatGodMode');
 bind('cheatNoclip', 'cheatNoclip');
 bind('cheatInfiniteHP', 'cheatInfiniteHP');
@@ -2120,7 +2310,59 @@ document.getElementById('cheatTeleportVillage').addEventListener('click', () => 
   const v = findNearestVillage();
   if (v) { player.pos.set(v.x, 60, v.z); player.vel.set(0, 0, 0); }
 });
-document.getElementById('cheatHealNow').addEventListener('click', () => { player.hp = player.maxHp; });
+document.getElementById('cheatHealNow').addEventListener('click', () => { player.hp = player.maxHp; player.hunger = player.maxHunger; });
+document.getElementById('cheatTeleportVape').addEventListener('click', () => {
+  const v = findNearestVapeShop();
+  if (v) { player.pos.set(v.x, 60, v.z); player.vel.set(0, 0, 0); }
+});
+document.getElementById('cheatTeleportDodgy').addEventListener('click', () => {
+  const v = findNearestDodgyShop();
+  if (v) { player.pos.set(v.x, 60, v.z); player.vel.set(0, 0, 0); }
+});
+document.getElementById('cheatGiveAll').addEventListener('click', () => {
+  for (const b of HOTBAR) player.inventory['b' + b.id] = (player.inventory['b' + b.id] || 0) + 64;
+  for (const k in ITEMS) player.inventory['i' + ITEMS[k].key] = (player.inventory['i' + ITEMS[k].key] || 0) + 16;
+  showToast('Given all items');
+});
+
+function findNearestVapeShop() {
+  let best = null, bestD = Infinity;
+  for (const v of vapeShopRegistry) {
+    const d = Math.hypot(v.x - player.pos.x, v.z - player.pos.z);
+    if (d < bestD) { bestD = d; best = v; }
+  }
+  if (!best || bestD > 200) {
+    const ccx = Math.floor(player.pos.x / CHUNK_W), ccz = Math.floor(player.pos.z / CHUNK_W);
+    for (let dx = -10; dx <= 10; dx++) for (let dz = -10; dz <= 10; dz++) {
+      const vc = vapeShopCenterAt(ccx + dx, ccz + dz);
+      if (vc) {
+        const wx = (ccx + dx) * CHUNK_W + vc.lx, wz = (ccz + dz) * CHUNK_W + vc.lz;
+        const d = Math.hypot(wx - player.pos.x, wz - player.pos.z);
+        if (d < bestD) { bestD = d; best = { x: wx, z: wz }; }
+      }
+    }
+  }
+  return best;
+}
+function findNearestDodgyShop() {
+  let best = null, bestD = Infinity;
+  for (const v of dodgyShopRegistry) {
+    const d = Math.hypot(v.x - player.pos.x, v.z - player.pos.z);
+    if (d < bestD) { bestD = d; best = v; }
+  }
+  if (!best || bestD > 200) {
+    const ccx = Math.floor(player.pos.x / CHUNK_W), ccz = Math.floor(player.pos.z / CHUNK_W);
+    for (let dx = -10; dx <= 10; dx++) for (let dz = -10; dz <= 10; dz++) {
+      const vc = dodgyShopCenterAt(ccx + dx, ccz + dz);
+      if (vc) {
+        const wx = (ccx + dx) * CHUNK_W + vc.lx, wz = (ccz + dz) * CHUNK_W + vc.lz;
+        const d = Math.hypot(wx - player.pos.x, wz - player.pos.z);
+        if (d < bestD) { bestD = d; best = { x: wx, z: wz }; }
+      }
+    }
+  }
+  return best;
+}
 
 function applySettings() {
   camera.fov = settings.fov; camera.updateProjectionMatrix();
@@ -2280,6 +2522,45 @@ function drawItemGlyph(ctx, key) {
     ctx.fillStyle = '#00ffff'; ctx.fillRect(7, 12, 2, 1);
   }
 }
+function puffVape(item) {
+  if (!takeInv(item)) return false;
+  player.vapeBuff = 12;
+  // Spawn smoke particles in front of camera
+  spawnSmoke();
+  showToast(`Puffed on ${item.name}. Buzzing.`);
+  return true;
+}
+let smokeParticles = [];
+function spawnSmoke() {
+  const dir = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(player.pitch, player.yaw, 0, 'YXZ'));
+  for (let i = 0; i < 12; i++) {
+    const m = new THREE.Mesh(
+      new THREE.BoxGeometry(0.08, 0.08, 0.08),
+      new THREE.MeshBasicMaterial({ color: 0xdddddd, transparent: true, opacity: 0.7 })
+    );
+    m.position.copy(player.pos).add(dir.clone().multiplyScalar(0.6));
+    m.position.x += (Math.random() - 0.5) * 0.2;
+    m.position.y -= 0.1 + (Math.random() - 0.5) * 0.1;
+    m.position.z += (Math.random() - 0.5) * 0.2;
+    scene.add(m);
+    smokeParticles.push({
+      mesh: m,
+      life: 1.5,
+      vel: new THREE.Vector3(dir.x + (Math.random()-0.5)*0.5, 0.8 + Math.random()*0.3, dir.z + (Math.random()-0.5)*0.5),
+    });
+  }
+}
+function updateSmoke(dt) {
+  for (let i = smokeParticles.length - 1; i >= 0; i--) {
+    const p = smokeParticles[i];
+    p.life -= dt;
+    p.mesh.position.addScaledVector(p.vel, dt);
+    p.mesh.material.opacity = Math.max(0, p.life / 1.5 * 0.7);
+    p.mesh.scale.multiplyScalar(1 + dt * 0.5);
+    if (p.life <= 0) { scene.remove(p.mesh); p.mesh.geometry.dispose(); smokeParticles.splice(i, 1); }
+  }
+}
+
 function renderInventory() {
   const blocksEl = document.getElementById('invBlocks');
   const itemsEl = document.getElementById('invItems');
@@ -2304,7 +2585,10 @@ function renderInventory() {
     const item = ITEMS[k];
     const count = player.inventory['i' + item.key] || 0;
     const el = makeSlotEl(item, count);
-    if (item.food) {
+    if (item.vape) {
+      el.title = 'Click to vape';
+      el.addEventListener('click', () => { if (puffVape(item)) renderInventory(); });
+    } else if (item.food) {
       el.title = 'Click to eat';
       el.addEventListener('click', () => { if (eatItem(item.key)) renderInventory(); });
     }
@@ -2313,6 +2597,112 @@ function renderInventory() {
 }
 invModal.addEventListener('click', (e) => { if (e.target === invModal) toggleInventory(); });
 craftModal.addEventListener('click', (e) => { if (e.target === craftModal) toggleCrafting(); });
+
+// ============== Furnace / Smelting ==============
+// Recipes: { in: ['key',count], out: ['key',count] }; fuels: cost 1 fuel-unit per smelt
+const SMELT_RECIPES = [
+  { in: ['b' + BLOCKS.COBBLE.id, 1], out: ['b' + BLOCKS.STONE.id, 1], label: 'Cobble → Stone' },
+  { in: ['b' + BLOCKS.SAND.id, 1], out: ['b' + BLOCKS.GLASS.id, 1], label: 'Sand → Glass' },
+  { in: ['b' + BLOCKS.CLAY.id, 1], out: ['b' + BLOCKS.TERRACOTTA.id, 1], label: 'Clay → Terracotta' },
+  { in: ['i' + ITEMS.PORK.key, 1], out: ['i' + ITEMS.PORK.key, 1, 'Cooked Pork', 8], label: 'Raw Pork → Cooked Pork', cook: true },
+  { in: ['i' + ITEMS.BEEF.key, 1], out: ['i' + ITEMS.BEEF.key, 1, 'Cooked Beef', 8], label: 'Raw Beef → Cooked Beef', cook: true },
+  { in: ['b' + BLOCKS.STONE.id, 1], out: ['b' + BLOCKS.STONE.id, 1, 'Smooth Stone (re-uses Stone)', 0], label: 'Stone → Smooth Stone', cook: false },
+];
+// Add cooked food items dynamically
+ITEMS.COOKED_PORK = { key: 'cooked_pork', name: 'Cooked Pork', food: 8 };
+ITEMS.COOKED_BEEF = { key: 'cooked_beef', name: 'Cooked Beef', food: 8 };
+ITEMS_BY_KEY['cooked_pork'] = ITEMS.COOKED_PORK;
+ITEMS_BY_KEY['cooked_beef'] = ITEMS.COOKED_BEEF;
+SMELT_RECIPES[3] = { in: ['i' + ITEMS.PORK.key, 1], out: ['i' + ITEMS.COOKED_PORK.key, 1], label: 'Raw Pork → Cooked Pork' };
+SMELT_RECIPES[4] = { in: ['i' + ITEMS.BEEF.key, 1], out: ['i' + ITEMS.COOKED_BEEF.key, 1], label: 'Raw Beef → Cooked Beef' };
+SMELT_RECIPES.pop(); // remove the placeholder smooth stone entry
+
+const FUELS = {
+  ['i' + ITEMS.COAL.key]: 8,
+  ['b' + BLOCKS.PLANK.id]: 1.5,
+  ['b' + BLOCKS.WOOD.id]: 1.5,
+  ['b' + BLOCKS.SPRUCE_LOG.id]: 1.5,
+  ['b' + BLOCKS.BIRCH_LOG.id]: 1.5,
+  ['b' + BLOCKS.SPRUCE_PLANK.id]: 1.5,
+  ['b' + BLOCKS.BIRCH_PLANK.id]: 1.5,
+};
+
+const furnaceModal = document.getElementById('furnaceModal');
+function toggleFurnace() {
+  const open = furnaceModal.classList.contains('hidden');
+  if (open) {
+    furnaceModal.classList.remove('hidden');
+    document.exitPointerLock();
+    overlay.classList.add('hidden');
+    renderFurnace();
+  } else {
+    furnaceModal.classList.add('hidden');
+    renderer.domElement.requestPointerLock();
+  }
+}
+function smeltOnce(recipe) {
+  // Find fuel
+  let fuelKey = null;
+  for (const k in FUELS) {
+    if ((player.inventory[k] || 0) >= 1) { fuelKey = k; break; }
+  }
+  if (!fuelKey) { showToast('No fuel! Need coal or wood/planks.'); return false; }
+  if ((player.inventory[recipe.in[0]] || 0) < recipe.in[1]) { showToast('Not enough input'); return false; }
+  // Consume input + 1 fuel
+  player.inventory[recipe.in[0]] -= recipe.in[1];
+  if (player.inventory[recipe.in[0]] <= 0) delete player.inventory[recipe.in[0]];
+  player.inventory[fuelKey] -= 1;
+  if (player.inventory[fuelKey] <= 0) delete player.inventory[fuelKey];
+  player.inventory[recipe.out[0]] = (player.inventory[recipe.out[0]] || 0) + recipe.out[1];
+  showToast(`Smelted ${lookupKey(recipe.out[0]).name}`);
+  return true;
+}
+function renderFurnace() {
+  const list = document.getElementById('furnaceList');
+  list.innerHTML = '';
+  // Show available fuel
+  const fuelEl = document.createElement('div');
+  fuelEl.style.cssText = 'background:#332010;padding:6px;margin-bottom:8px';
+  let fuelTxt = 'Fuel: ';
+  let hasFuel = false;
+  for (const k in FUELS) {
+    const n = player.inventory[k] || 0;
+    if (n > 0) { fuelTxt += `${lookupKey(k).name} x${n}, `; hasFuel = true; }
+  }
+  if (!hasFuel) fuelTxt += 'NONE';
+  fuelEl.textContent = fuelTxt;
+  list.appendChild(fuelEl);
+  for (const recipe of SMELT_RECIPES) {
+    const row = document.createElement('div');
+    row.className = 'craft-row';
+    row.style.background = '#2a1810';
+    row.style.borderLeft = '3px solid #ff8030';
+    const ing = document.createElement('div'); ing.className = 'ingredients';
+    const inItem = lookupKey(recipe.in[0]);
+    const have = player.inventory[recipe.in[0]] || 0;
+    const el = makeSlotEl(inItem, recipe.in[1]);
+    const hl = document.createElement('div');
+    hl.style.cssText = 'font-size:10px;color:' + (have >= recipe.in[1] ? '#7f7' : '#f77');
+    hl.textContent = `(${have}/${recipe.in[1]})`;
+    el.appendChild(hl);
+    ing.appendChild(el);
+    row.appendChild(ing);
+    const arrow = document.createElement('div'); arrow.className = 'arrow'; arrow.textContent = '→'; row.appendChild(arrow);
+    row.appendChild(makeSlotEl(lookupKey(recipe.out[0]), recipe.out[1]));
+    const lbl = document.createElement('div'); lbl.className = 'label';
+    lbl.style.color = '#ff8030';
+    lbl.textContent = recipe.label;
+    row.appendChild(lbl);
+    const btn = document.createElement('button'); btn.textContent = 'Smelt';
+    btn.disabled = have < recipe.in[1] || !hasFuel;
+    btn.style.background = btn.disabled ? '#444' : '#a55020';
+    btn.addEventListener('click', () => { if (smeltOnce(recipe)) renderFurnace(); });
+    row.appendChild(btn);
+    list.appendChild(row);
+  }
+}
+document.getElementById('furnaceClose').addEventListener('click', toggleFurnace);
+furnaceModal.addEventListener('click', (e) => { if (e.target === furnaceModal) toggleFurnace(); });
 
 // ============== Vape Shop ==============
 const vapeModal = document.getElementById('vapeModal');
@@ -2658,6 +3048,7 @@ function gameState() {
   for (const [k, v] of world.modifiedBlocks) mods[k] = v;
   return {
     seed: WORLD_SEED, time: timeOfDay,
+    worldType: settings.worldType, gamemode: settings.gamemode,
     player: { x: player.pos.x, y: player.pos.y, z: player.pos.z, yaw: player.yaw, pitch: player.pitch, hp: player.hp, hunger: player.hunger, inventory: player.inventory },
     modifiedBlocks: mods,
     boats: boats.map(b => ({ x: b.pos.x, y: b.pos.y, z: b.pos.z, yaw: b.yaw })),
@@ -2676,6 +3067,8 @@ function loadGame() {
   if (!raw) { saveStatus.textContent = `No save "${slot}"`; return; }
   try {
     const data = JSON.parse(raw);
+    if (data.worldType) settings.worldType = data.worldType;
+    if (data.gamemode) settings.gamemode = data.gamemode;
     resetWorld(data.seed);
     timeOfDay = data.time || 0.25;
     player.pos.set(data.player.x, data.player.y, data.player.z);
@@ -2748,8 +3141,39 @@ function animate(now) {
   updateBoats(dt, player.pos.x, player.pos.z);
   updateMobSpawns(dt, player.pos.x, player.pos.z);
   for (let i = mobs.length - 1; i >= 0; i--) updateMob(mobs[i], dt);
+  updateSmoke(dt);
 
   if (settings.cheatInfiniteHP && player.hp < player.maxHp) player.hp = Math.min(player.maxHp, player.hp + dt * 2);
+  if (settings.gamemode === 'creative') {
+    player.hp = player.maxHp;
+    player.hunger = player.maxHunger;
+  }
+
+  // Cactus damage — if player AABB overlaps any cactus block
+  {
+    const r = player.radius;
+    const minX = Math.floor(player.pos.x - r), maxX = Math.floor(player.pos.x + r);
+    const minZ = Math.floor(player.pos.z - r), maxZ = Math.floor(player.pos.z + r);
+    const minY = Math.floor(player.pos.y - player.height), maxY = Math.floor(player.pos.y);
+    let touching = false;
+    outer: for (let x = minX; x <= maxX; x++) for (let y = minY; y <= maxY; y++) for (let z = minZ; z <= maxZ; z++) {
+      if (world.getBlock(x, y, z) === BLOCKS.CACTUS.id) { touching = true; break outer; }
+      // Also adjacent (touching the side)
+      for (const [dx, dz] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+        if (world.getBlock(x+dx, y, z+dz) === BLOCKS.CACTUS.id) {
+          const cx = x + dx + 0.5, cz = z + dz + 0.5;
+          if (Math.abs(player.pos.x - cx) < r + 0.5 && Math.abs(player.pos.z - cz) < r + 0.5) { touching = true; break outer; }
+        }
+      }
+    }
+    if (touching && !settings.cheatGodMode && settings.gamemode !== 'creative') {
+      player.cactusTick = (player.cactusTick || 0) + dt;
+      if (player.cactusTick > 0.5) { player.hp -= 1; player.cactusTick = 0; playerHurt(); }
+    } else { player.cactusTick = 0; }
+  }
+
+  // Vape buzz buff timer
+  if (player.vapeBuff > 0) player.vapeBuff -= dt;
 
   // Hunger: drain exhaustion based on activity
   const moving = Math.hypot(player.vel.x, player.vel.z) > 0.5;
@@ -2805,6 +3229,59 @@ function animate(now) {
   }
 }
 requestAnimationFrame(animate);
+
+// ============== Main Menu ==============
+const mainMenu = document.getElementById('mainMenu');
+const mmHome = document.getElementById('mmHome');
+const mmWorldsPane = document.getElementById('mmWorldsPane');
+const mmNewPane = document.getElementById('mmNewPane');
+function showMMPane(id) {
+  for (const el of [mmHome, mmWorldsPane, mmNewPane]) el.classList.add('hidden');
+  document.getElementById(id).classList.remove('hidden');
+}
+document.getElementById('mmPlay').addEventListener('click', () => { mainMenu.classList.add('hidden'); overlay.classList.remove('hidden'); });
+document.getElementById('mmWorlds').addEventListener('click', () => { renderMMWorlds(); showMMPane('mmWorldsPane'); });
+document.getElementById('mmNew').addEventListener('click', () => showMMPane('mmNewPane'));
+document.getElementById('mmOptions').addEventListener('click', () => { mainMenu.classList.add('hidden'); toggleMenu(); });
+document.querySelectorAll('#mainMenu [data-back]').forEach(b => b.addEventListener('click', () => showMMPane(b.dataset.back)));
+function renderMMWorlds() {
+  const list = document.getElementById('mmWorldList');
+  list.innerHTML = '';
+  const keys = Object.keys(localStorage).filter(k => k.startsWith('mc_save_')).map(k => k.slice('mc_save_'.length));
+  if (keys.length === 0) list.innerHTML = '<p style="opacity:0.6">No saved worlds yet. Create one!</p>';
+  for (const slot of keys) {
+    let info = {};
+    try { info = JSON.parse(localStorage.getItem('mc_save_' + slot)); } catch (e) {}
+    const row = document.createElement('div'); row.className = 'world-entry';
+    const label = document.createElement('div');
+    label.innerHTML = `<b>${slot}</b><br><span style="font-size:11px;opacity:0.7">Seed ${info.seed||'?'} · ${info.worldType||'default'} · ${info.gamemode||'creative'}</span>`;
+    row.appendChild(label);
+    const btns = document.createElement('div');
+    const loadB = document.createElement('button'); loadB.textContent = 'Play';
+    loadB.addEventListener('click', () => { document.getElementById('saveSlot').value = slot; loadGame(); mainMenu.classList.add('hidden'); overlay.classList.remove('hidden'); });
+    const delB = document.createElement('button'); delB.textContent = 'Delete'; delB.style.background = '#552020';
+    delB.addEventListener('click', () => { if (confirm('Delete ' + slot + '?')) { localStorage.removeItem('mc_save_' + slot); renderMMWorlds(); } });
+    btns.appendChild(loadB); btns.appendChild(delB);
+    row.appendChild(btns);
+    list.appendChild(row);
+  }
+}
+document.getElementById('mmCreate').addEventListener('click', () => {
+  const name = (document.getElementById('mmName').value || 'world').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const seedRaw = document.getElementById('mmSeed').value.trim();
+  let seed;
+  if (seedRaw === '') seed = (Math.random() * 1e9) | 0;
+  else if (/^-?\d+$/.test(seedRaw)) seed = parseInt(seedRaw) >>> 0;
+  else { let h = 0; for (const c of seedRaw) h = (h * 31 + c.charCodeAt(0)) >>> 0; seed = h; }
+  settings.worldType = document.getElementById('mmType').value;
+  settings.gamemode = document.getElementById('mmGamemode').value;
+  saveSettings();
+  resetWorld(seed);
+  player.pos.set(8, 80, 8); player.vel.set(0, 0, 0); player.hp = player.maxHp; player.hunger = player.maxHunger; player.inventory = {};
+  document.getElementById('saveSlot').value = name;
+  saveGame();
+  mainMenu.classList.add('hidden'); overlay.classList.remove('hidden');
+});
 
 // Try to load autosave
 const auto = localStorage.getItem('mc_save_autosave');
