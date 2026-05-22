@@ -78,6 +78,9 @@
   .inv-cat.active { background: #555; border-color: #888; }
   .creative-toggle { background: #4a6; color: #fff; border: 2px solid #6c8; padding: 6px 14px; margin-left: auto; cursor: pointer; font-family: inherit; }
   .creative-toggle.on { background: #6c8; }
+  #invModal.drag-active { background: rgba(0,0,0,0.75); }
+  #invModal.drag-active::before { content: "Drop here to discard onto the ground"; position: absolute; top: 10px; left: 50%; transform: translateX(-50%); color: #ffe040; background: rgba(60,40,0,0.85); border: 2px dashed #ffe040; padding: 8px 18px; font-size: 14px; font-weight: bold; pointer-events: none; z-index: 1; }
+  #invModal.drag-active::after { content: ""; position: absolute; inset: 16px; border: 3px dashed rgba(255,224,64,0.4); pointer-events: none; }
   .hidden { display: none !important; }
   #menu .panel { background: #222; border: 2px solid #555; padding: 20px 30px; width: 460px; max-height: 80vh; overflow-y: auto; }
   #vapeModal .panel, #craftModal .panel, #furnaceModal .panel { max-height: 80vh; overflow-y: auto; width: 540px; }
@@ -307,7 +310,7 @@
 import * as THREE from 'three';
 
 // VERSION — replaced on every commit by the pre-commit script below
-const VERSION = 'v0.18 (b43ce7d)';
+const VERSION = 'v0.19 (7922da0)';
 
 // ============== Random / Noise ==============
 function mulberry32(seed) {
@@ -3236,7 +3239,8 @@ function renderInventory() {
       if (item.vape) {
         el.title = 'Click to put in hotbar (use V or drag to vape)';
         el.addEventListener('click', (e) => {
-          if (invCreativeShowAll && count === 0) player.inventory['i' + item.key] = 1;
+          // Creative cheat: spawn a FRESH 60-puff device, not just an inventory count
+          if (invCreativeShowAll && getVapeArr(item.key).length === 0) giveVape(item.key, PUFFS_PER_DEVICE);
           player.hotbarLayout[selectedSlot] = { type: 'i', key: item.key };
           renderInventory(); updateHotbar();
         });
@@ -3278,8 +3282,17 @@ document.getElementById('craftModalClose').addEventListener('click', toggleCraft
 invModal.addEventListener('click', (e) => { if (e.target === invModal) toggleInventory(); });
 craftModal.addEventListener('click', (e) => { if (e.target === craftModal) toggleCrafting(); });
 // Allow dropping outside the panel to drop the item on the ground
-invModal.addEventListener('dragover', (e) => { if (e.target === invModal) e.preventDefault(); });
+invModal.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  invModal.classList.add('drag-active');
+});
+invModal.addEventListener('dragleave', (e) => {
+  // Only clear when leaving the modal entirely
+  if (e.target === invModal) invModal.classList.remove('drag-active');
+});
+invModal.addEventListener('dragend', () => invModal.classList.remove('drag-active'));
 invModal.addEventListener('drop', (e) => {
+  invModal.classList.remove('drag-active');
   if (e.target !== invModal) return; // only background drops trigger this
   e.preventDefault();
   const data = e.dataTransfer.getData('text/plain');
