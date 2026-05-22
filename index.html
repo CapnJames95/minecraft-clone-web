@@ -180,7 +180,15 @@
         <li>Mine ores (coal, iron, gold, diamond, emerald, lapis, redstone), craft, and smelt at furnaces.</li>
         <li>Sleep in beds at night to skip to morning. Don't touch the cactus.</li>
       </ul>
-      <h3 style="color:#ff80ff">Controls</h3>
+      <h3 style="color:#ff80ff">Gamepad (Steam Deck / Xbox / Ayn Thor)</h3>
+      <ul style="font-size:14px;line-height:1.6">
+        <li>Left stick: Move &nbsp; Right stick: Look</li>
+        <li>A: Jump &nbsp; B: Close menu &nbsp; X: Break/Attack &nbsp; Y: Place/Use</li>
+        <li>LB/RB: Cycle hotbar &nbsp; LT: Sprint &nbsp; RT: Vape</li>
+        <li>View/Back: Inventory &nbsp; Menu/Start: Settings</li>
+        <li>D-pad: Cycle hotbar</li>
+      </ul>
+      <h3 style="color:#ff80ff">Keyboard Controls</h3>
       <ul style="font-size:14px;line-height:1.6">
         <li><b>WASD</b> Move &nbsp; <b>Space</b> Jump/Swim &nbsp; <b>Shift</b> Sprint &nbsp; <b>F</b> Fly toggle</li>
         <li><b>Mouse</b> Look &nbsp; <b>Left click</b> Break/Attack &nbsp; <b>Right click</b> Place/Use</li>
@@ -310,7 +318,7 @@
 import * as THREE from 'three';
 
 // VERSION — replaced on every commit by the pre-commit script below
-const VERSION = 'v0.20 (1fc7ff0)';
+const VERSION = 'v0.21 (c184453)';
 
 // ============== Random / Noise ==============
 function mulberry32(seed) {
@@ -1075,7 +1083,7 @@ class Chunk {
     const doorX = lx + Math.floor(W / 2);
     for (const dx of [doorX - 1, doorX, doorX + 1]) {
       this.blocks[this.idx(dx, baseY + 1, lz + D - 1)] = (dx === doorX) ? BLOCKS.DOOR_CLOSED.id : 0;
-      this.blocks[this.idx(dx, baseY + 2, lz + D - 1)] = 0;
+      this.blocks[this.idx(dx, baseY + 2, lz + D - 1)] = (dx === doorX) ? BLOCKS.DOOR_CLOSED.id : 0;
     }
     // Counter row at z = 2, leaving z = 1 as space behind for the shopkeeper
     const counterZ = lz + 2;
@@ -1172,7 +1180,7 @@ class Chunk {
     // Doorway with torches and an actual door
     const doorX = lx + Math.floor(W / 2);
     this.blocks[this.idx(doorX, baseY + 1, lz + D - 1)] = BLOCKS.DOOR_CLOSED.id;
-    this.blocks[this.idx(doorX, baseY + 2, lz + D - 1)] = 0;
+    this.blocks[this.idx(doorX, baseY + 2, lz + D - 1)] = BLOCKS.DOOR_CLOSED.id;
     this.blocks[this.idx(doorX - 1, baseY + 3, lz + D - 1)] = BLOCKS.TORCH.id;
     this.blocks[this.idx(doorX + 1, baseY + 3, lz + D - 1)] = BLOCKS.TORCH.id;
     // Chimney
@@ -2101,7 +2109,8 @@ document.addEventListener('wheel', (e) => {
 }, { passive: true });
 document.addEventListener('keyup', (e) => { keys[e.code] = false; });
 document.addEventListener('mousedown', (e) => {
-  if (document.pointerLockElement !== renderer.domElement) return;
+  // Allow gamepad-simulated events even without pointer lock
+  if (document.pointerLockElement !== renderer.domElement && !e._fromGamepad) return;
   if (e.button === 2 && player.boat) {
     const b = player.boat; player.boat = null;
     player.pos.set(b.pos.x + 1.5, b.pos.y + 1.5, b.pos.z); player.vel.set(0, 0, 0);
@@ -2136,6 +2145,13 @@ document.addEventListener('mousedown', (e) => {
   if (e.button === 0) {
     const id = world.getBlock(hit.block.x, hit.block.y, hit.block.z);
     world.setBlock(hit.block.x, hit.block.y, hit.block.z, 0);
+    // Break the partner half of doors as well
+    if (id === BLOCKS.DOOR_CLOSED.id || id === BLOCKS.DOOR_OPEN.id) {
+      const above = world.getBlock(hit.block.x, hit.block.y + 1, hit.block.z);
+      const below = world.getBlock(hit.block.x, hit.block.y - 1, hit.block.z);
+      if (above === BLOCKS.DOOR_CLOSED.id || above === BLOCKS.DOOR_OPEN.id) world.setBlock(hit.block.x, hit.block.y + 1, hit.block.z, 0);
+      if (below === BLOCKS.DOOR_CLOSED.id || below === BLOCKS.DOOR_OPEN.id) world.setBlock(hit.block.x, hit.block.y - 1, hit.block.z, 0);
+    }
     unlockAchievement('first_block');
     if (id === BLOCKS.LEAVES.id && Math.random() < 0.1) addInv(ITEMS.APPLE);
     else if (id === BLOCKS.STONE.id) addInv(BLOCKS.COBBLE);
@@ -2158,9 +2174,18 @@ document.addEventListener('mousedown', (e) => {
     if (blockId === BLOCKS.CRAFTBL.id) { toggleCrafting(); return; }
     // Furnace opens smelting
     if (blockId === BLOCKS.FURNACE.id) { toggleFurnace(); return; }
-    // Door open/close
-    if (blockId === BLOCKS.DOOR_CLOSED.id) { world.setBlock(hit.block.x, hit.block.y, hit.block.z, BLOCKS.DOOR_OPEN.id); return; }
-    if (blockId === BLOCKS.DOOR_OPEN.id) { world.setBlock(hit.block.x, hit.block.y, hit.block.z, BLOCKS.DOOR_CLOSED.id); return; }
+    // Door open/close — 2-block-tall doors; toggle both halves and auto-close after 5s
+    if (blockId === BLOCKS.DOOR_CLOSED.id || blockId === BLOCKS.DOOR_OPEN.id) {
+      let by = hit.block.y;
+      while (by > 0 && (world.getBlock(hit.block.x, by - 1, hit.block.z) === BLOCKS.DOOR_CLOSED.id || world.getBlock(hit.block.x, by - 1, hit.block.z) === BLOCKS.DOOR_OPEN.id)) by--;
+      const target = (blockId === BLOCKS.DOOR_CLOSED.id) ? BLOCKS.DOOR_OPEN.id : BLOCKS.DOOR_CLOSED.id;
+      world.setBlock(hit.block.x, by, hit.block.z, target);
+      world.setBlock(hit.block.x, by + 1, hit.block.z, target);
+      const key = `${hit.block.x},${by},${hit.block.z}`;
+      if (target === BLOCKS.DOOR_OPEN.id) openDoorTimers.set(key, 5.0);
+      else openDoorTimers.delete(key);
+      return;
+    }
     // Chest gives a small bonus loot (simple: random items)
     if (blockId === BLOCKS.CHEST.id) {
       // Replace chest with a one-time loot
@@ -2201,6 +2226,10 @@ document.addEventListener('mousedown', (e) => {
         if (player.inventory[k] <= 0) delete player.inventory[k];
       }
       world.setBlock(p.x, p.y, p.z, item.id);
+      // Doors are 2 blocks tall — also place the upper half
+      if (item.id === BLOCKS.DOOR_CLOSED.id || item.id === BLOCKS.DOOR_OPEN.id) {
+        world.setBlock(p.x, p.y + 1, p.z, item.id);
+      }
       unlockAchievement('first_place');
     }
   }
@@ -3024,6 +3053,107 @@ function showVapeCloud() {
   showVapeCloud._t = setTimeout(() => c.classList.remove('show'), 700);
 }
 // ============== Dropped Items ==============
+// ============== Gamepad / Controller (Steam Deck, Ayn Thor, Xbox, etc.) ==============
+// Uses the standard Gamepad API mapping (button indices match Xbox layout)
+const gamepadState = {
+  prev: new Array(20).fill(false),
+  connected: false,
+};
+let gamepadFakeButtonDown = null; // for left/right click emulation
+window.addEventListener('gamepadconnected', (e) => {
+  gamepadState.connected = true;
+  showToast(`Controller connected: ${e.gamepad.id.slice(0, 40)}`);
+});
+window.addEventListener('gamepaddisconnected', () => { gamepadState.connected = false; });
+
+function updateGamepad(dt) {
+  const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+  let pad = null;
+  for (const p of pads) if (p && p.connected) { pad = p; break; }
+  if (!pad) return;
+  // Sticks
+  const dz = 0.18;
+  const lx = Math.abs(pad.axes[0]) > dz ? pad.axes[0] : 0;
+  const ly = Math.abs(pad.axes[1]) > dz ? pad.axes[1] : 0;
+  const rx = Math.abs(pad.axes[2]) > dz ? pad.axes[2] : 0;
+  const ry = Math.abs(pad.axes[3]) > dz ? pad.axes[3] : 0;
+  // Apply movement via virtual keys
+  keys['KeyW'] = ly < -0.3;
+  keys['KeyS'] = ly > 0.3;
+  keys['KeyA'] = lx < -0.3;
+  keys['KeyD'] = lx > 0.3;
+  // Look
+  const lookSpeed = 2.5;
+  player.yaw -= rx * lookSpeed * dt;
+  player.pitch -= ry * lookSpeed * dt;
+  player.pitch = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, player.pitch));
+  // Buttons
+  const b = pad.buttons.map(x => x.pressed);
+  const press = (i) => b[i] && !gamepadState.prev[i];
+  const release = (i) => !b[i] && gamepadState.prev[i];
+  // 0 A: Jump (hold)
+  keys['Space'] = !!b[0];
+  // 1 B: Cancel / close modal
+  if (press(1)) {
+    const modalIds = ['invModal', 'craftModal', 'vapeModal', 'dialogueModal', 'furnaceModal'];
+    for (const id of modalIds) {
+      const el = document.getElementById(id);
+      if (!el.classList.contains('hidden')) { closeModalAndResume(el); break; }
+    }
+  }
+  // 2 X: Left click (break/attack)
+  if (press(2)) simulateMouse(0);
+  // 3 Y: Right click (place/use)
+  if (press(3)) simulateMouse(2);
+  // 4 LB: cycle hotbar -1
+  if (press(4)) { selectedSlot = (selectedSlot - 1 + 9) % 9; updateHotbar(); }
+  // 5 RB: cycle hotbar +1
+  if (press(5)) { selectedSlot = (selectedSlot + 1) % 9; updateHotbar(); }
+  // 6 LT: Sprint (hold)
+  keys['ShiftLeft'] = b[6];
+  // 7 RT: Vape (press)
+  if (press(7)) {
+    const held = getHeldItem();
+    if (held && held.vape) puffVape(held);
+    else if (held && (held.key === 'fake_cig' || held.key === 'fake_cig_pack')) smokeFakeCig(held);
+  }
+  // 8 Back/View: Inventory
+  if (press(8)) toggleInventory();
+  // 9 Start/Menu: Settings menu
+  if (press(9)) toggleMenu();
+  // 12/13 D-pad up/down: scroll hotbar items
+  if (press(12)) { selectedSlot = (selectedSlot + 8) % 9; updateHotbar(); }
+  if (press(13)) { selectedSlot = (selectedSlot + 1) % 9; updateHotbar(); }
+  // 14/15 D-pad left/right: same cycling
+  if (press(14)) { selectedSlot = (selectedSlot + 8) % 9; updateHotbar(); }
+  if (press(15)) { selectedSlot = (selectedSlot + 1) % 9; updateHotbar(); }
+  // 16 Home/Guide: pause
+  // Save state for edge detection
+  gamepadState.prev = b.slice();
+}
+function simulateMouse(button) {
+  const e = new MouseEvent('mousedown', { button, bubbles: true });
+  e._fromGamepad = true;
+  document.dispatchEvent(e);
+}
+
+// ============== Doors ==============
+const openDoorTimers = new Map(); // "x,y,z" of bottom block -> seconds until auto-close
+function updateOpenDoors(dt) {
+  for (const [key, time] of openDoorTimers) {
+    const remaining = time - dt;
+    if (remaining <= 0) {
+      const [x, y, z] = key.split(',').map(Number);
+      // Only close if still both open doors
+      if (world.getBlock(x, y, z) === BLOCKS.DOOR_OPEN.id) world.setBlock(x, y, z, BLOCKS.DOOR_CLOSED.id);
+      if (world.getBlock(x, y + 1, z) === BLOCKS.DOOR_OPEN.id) world.setBlock(x, y + 1, z, BLOCKS.DOOR_CLOSED.id);
+      openDoorTimers.delete(key);
+    } else {
+      openDoorTimers.set(key, remaining);
+    }
+  }
+}
+
 const droppedItems = [];
 function makeDroppedItemMesh(slotData) {
   // Block: small textured cube
@@ -3900,10 +4030,12 @@ function animate(now) {
   for (let i = mobs.length - 1; i >= 0; i--) updateMob(mobs[i], dt);
   updateSmoke(dt);
   updateDroppedItems(dt);
+  updateOpenDoors(dt);
+  updateGamepad(dt);
 
   if (settings.cheatInfiniteHP && player.hp < player.maxHp) player.hp = Math.min(player.maxHp, player.hp + dt * 2);
   if (settings.gamemode === 'creative') {
-    if (!player.drowning) player.hp = player.maxHp;
+    if (!player.drowning && !player.cactusHurt) player.hp = player.maxHp;
     player.hunger = player.maxHunger;
   }
 
@@ -3963,10 +4095,11 @@ function animate(now) {
         }
       }
     }
-    if (touching && !settings.cheatGodMode && settings.gamemode !== 'creative') {
+    if (touching && !settings.cheatGodMode) {
       player.cactusTick = (player.cactusTick || 0) + dt;
-      if (player.cactusTick > 0.5) { player.hp -= 1; player.cactusTick = 0; playerHurt(); }
-    } else { player.cactusTick = 0; }
+      player.cactusHurt = true;
+      if (player.cactusTick > 0.5) { player.hp = Math.max(0, player.hp - 1); player.cactusTick = 0; playerHurt(); }
+    } else { player.cactusTick = 0; player.cactusHurt = false; }
   }
 
   // Vape buzz buff timer
