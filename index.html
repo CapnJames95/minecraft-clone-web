@@ -1733,11 +1733,42 @@ const player = {
   exhaustion: 0,
   vapeBuff: 0,
   nicotine: 0, maxNicotine: 100,
-  vapePuffs: {}, // flavorKey -> puffs remaining in the currently-equipped device
+  vapePuffs: {}, // flavorKey -> array of puffs remaining for each device the player owns
   sickTimer: 0,
   hotbarLayout: null, // initialized below
 };
 const PUFFS_PER_DEVICE = 60;
+
+function getVapeArr(key) {
+  if (!Array.isArray(player.vapePuffs[key])) {
+    // Migrate old format (single number per flavor)
+    const old = typeof player.vapePuffs[key] === 'number' ? player.vapePuffs[key] : 0;
+    const cnt = player.inventory['i' + key] || 0;
+    const arr = [];
+    if (old > 0) arr.push(old);
+    for (let i = 0; i < cnt; i++) arr.push(PUFFS_PER_DEVICE);
+    player.vapePuffs[key] = arr;
+    player.inventory['i' + key] = arr.length;
+    if (player.inventory['i' + key] <= 0) delete player.inventory['i' + key];
+  }
+  return player.vapePuffs[key];
+}
+function giveVape(key, puffs = PUFFS_PER_DEVICE) {
+  const arr = getVapeArr(key);
+  arr.push(puffs);
+  player.inventory['i' + key] = arr.length;
+}
+function totalPuffs(key) {
+  const arr = getVapeArr(key);
+  return arr.reduce((a, b) => a + b, 0);
+}
+function lowestPuffDevice(key) {
+  const arr = getVapeArr(key);
+  if (arr.length === 0) return -1;
+  let idx = 0;
+  for (let i = 1; i < arr.length; i++) if (arr[i] < arr[idx]) idx = i;
+  return idx;
+}
 // Items (non-block consumables and materials)
 const ITEMS = {
   STICK: { key: 'stick', name: 'Stick' },
@@ -2885,32 +2916,32 @@ function drawItemGlyph(ctx, key) {
 }
 function puffVape(item) {
   const key = item.key;
-  // Initialize device if none
-  if (!player.vapePuffs[key] || player.vapePuffs[key] <= 0) {
-    const ownK = 'i' + key;
-    if (!player.inventory[ownK] || player.inventory[ownK] <= 0) {
-      showToast(`No ${item.name}!`);
-      return false;
-    }
-    // Consume one device, charge with full puffs
-    player.inventory[ownK]--;
-    if (player.inventory[ownK] <= 0) delete player.inventory[ownK];
-    player.vapePuffs[key] = PUFFS_PER_DEVICE;
-  }
-  player.vapePuffs[key]--;
+  const arr = getVapeArr(key);
+  if (arr.length === 0) { showToast(`No ${item.name}!`); return false; }
+  // Use the device with the lowest puffs (so partial ones drain first)
+  const idx = lowestPuffDevice(key);
+  arr[idx]--;
   player.nicotine = Math.min(player.maxNicotine + 30, player.nicotine + 6);
   player.vapeBuff = 12;
   spawnSmoke();
   showVapeCloud();
   unlockAchievement('first_vape');
   if (player.nicotine > 90) unlockAchievement('too_much_nic');
-  const left = player.vapePuffs[key];
-  if (left <= 0) { showToast(`${item.name} is empty! Out of puffs.`); unlockAchievement('empty_vape'); }
-  else if (left < 10) showToast(`Puffed ${item.name}. Only ${left} puffs left!`);
-  else showToast(`Puffed ${item.name}. ${left} puffs left.`);
+  if (arr[idx] <= 0) {
+    arr.splice(idx, 1);
+    player.inventory['i' + key] = arr.length;
+    if (player.inventory['i' + key] <= 0) delete player.inventory['i' + key];
+    showToast(`${item.name} is empty! Threw it out.`);
+    unlockAchievement('empty_vape');
+  } else if (arr[idx] < 10) {
+    showToast(`Puffed ${item.name}. Only ${arr[idx]} puffs left on this one!`);
+  } else {
+    const tot = totalPuffs(key);
+    showToast(`Puffed ${item.name}. ${arr[idx]}/${PUFFS_PER_DEVICE} on this device (${tot} total).`);
+  }
   // All-flavors check
   const flavors = ['vape_mango','vape_mint','vape_blueberry','vape_strawberry','vape_watermelon','vape_cottoncandy','vape_gold'];
-  if (flavors.every(f => (player.inventory['i'+f] || 0) > 0 || (player.vapePuffs[f] || 0) > 0)) unlockAchievement('all_flavors');
+  if (flavors.every(f => (getVapeArr(f).length) > 0)) unlockAchievement('all_flavors');
   return true;
 }
 
@@ -3020,12 +3051,15 @@ function renderInventory() {
       if (!showAll && count === 0 && !(item.vape && (player.vapePuffs[item.key] || 0) > 0)) continue;
       const el = makeSlotEl(item, count);
       if (item.vape) {
-        const puffs = player.vapePuffs[item.key] || 0;
-        const tot = count * PUFFS_PER_DEVICE + puffs;
+        const arr = getVapeArr(item.key);
+        const tot = arr.reduce((a, b) => a + b, 0);
         if (tot > 0) {
+          // Show smallest device puffs (next-to-use) and total
+          const minP = Math.min(...arr);
           const pp = document.createElement('div');
-          pp.style.cssText = 'position:absolute;top:-2px;right:2px;font-size:9px;background:rgba(0,0,0,0.7);padding:0 2px;color:' + (puffs < 10 ? '#f88' : '#8ff');
-          pp.textContent = puffs + 'p';
+          pp.style.cssText = 'position:absolute;top:-2px;right:2px;font-size:9px;background:rgba(0,0,0,0.75);padding:0 2px;color:' + (minP < 10 ? '#f88' : '#8ff');
+          pp.textContent = minP + 'p';
+          pp.title = `Devices: ${arr.length} (${arr.join(', ')} puffs each); ${tot} total`;
           el.appendChild(pp);
         }
       }
@@ -3361,7 +3395,14 @@ function renderShop(shopType) {
         player.inventory[k] -= c;
         if (player.inventory[k] <= 0) delete player.inventory[k];
       }
-      player.inventory[trade.out] = (player.inventory[trade.out] || 0) + 1;
+      // Give vapes via the device-stack helper so each one is a fresh 60-puff instance
+      const outItem = lookupKey(trade.out);
+      if (outItem && outItem.vape) {
+        const key = trade.out.startsWith('i') ? trade.out.slice(1) : trade.out;
+        giveVape(key, PUFFS_PER_DEVICE);
+      } else {
+        player.inventory[trade.out] = (player.inventory[trade.out] || 0) + 1;
+      }
       showToast('Got ' + lookupKey(trade.out).name);
       if (trade.out === 'i' + ITEMS.LOYALTY.key) unlockAchievement('loyalty_card');
       if (trade.out === 'i' + ITEMS.FAKE_CIG.key || trade.out === 'i' + ITEMS.FAKE_CIG_PACK.key) unlockAchievement('fake_cig');
@@ -3807,7 +3848,7 @@ document.getElementById('mmCreate').addEventListener('click', () => {
   player.inventory = {}; player.vapePuffs = {}; player.nicotine = 0;
   player.hotbarLayout = defaultHotbarLayout();
   // Both gamemodes: start with one nearly-used-up Mango vape and loyalty-card materials
-  player.vapePuffs[ITEMS.VAPE_MANGO.key] = 20; // partway used
+  giveVape(ITEMS.VAPE_MANGO.key, 20);
   player.inventory['i' + ITEMS.GOLD_INGOT.key] = 1;
   player.inventory['i' + ITEMS.WHEAT.key] = 2;
   showToast('Starter kit: 1 Vape (20/60 puffs), 1 Gold Ingot, 2 Wheat for loyalty card');
